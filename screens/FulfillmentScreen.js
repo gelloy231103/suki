@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Pressable } from 'react-native';
 
 const App = () => {
   const [page, setPage] = useState('fulfillment');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-
   const [fulfillments, setFulfillments] = useState({});
+  const [canCompleteOrder, setCanCompleteOrder] = useState(false);
 
   const orders = [
     {
@@ -50,13 +50,31 @@ const App = () => {
   const handleBack = () => {
     setPage('fulfillment');
     setSelectedCustomer(null);
+    setCanCompleteOrder(false);
   };
 
   const toggleFulfilled = (orderKey) => {
-    setFulfillments(prev => ({
-      ...prev,
-      [orderKey]: !prev[orderKey]
-    }));
+    setFulfillments(prev => {
+      const updated = {
+        ...prev,
+        [orderKey]: !prev[orderKey]
+      };
+      return updated;
+    });
+  };
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      const allChecked = selectedCustomer.orders.every(item =>
+        fulfillments[`${selectedCustomer.item}-${item.name}`]
+      );
+      setCanCompleteOrder(allChecked);
+    }
+  }, [fulfillments, selectedCustomer]);
+
+  const handleCompleteOrder = () => {
+    Alert.alert('Order Completed', `${selectedCustomer.item} has been marked complete.`);
+    handleBack();
   };
 
   if (page === 'orders') {
@@ -95,6 +113,17 @@ const App = () => {
               </View>
             );
           })}
+
+          {/* Complete Order Button */}
+          <TouchableOpacity
+            style={[styles.completeOrderButton, !canCompleteOrder && styles.disabledButton]}
+            onPress={handleCompleteOrder}
+            disabled={!canCompleteOrder}
+          >
+            <Text style={styles.completeOrderText}>
+              {canCompleteOrder ? 'Complete Order' : 'Complete all items to proceed'}
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
     );
@@ -266,5 +295,20 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  completeOrderButton: {
+    marginTop: 20,
+    backgroundColor: '#81C784',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  completeOrderText: {
+    fontWeight: 'bold',
+    color: '#fff',
+    fontSize: 16,
+  },
+  disabledButton: {
+    backgroundColor: '#C8E6C9',
   },
 });
