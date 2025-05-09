@@ -1,20 +1,57 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import 'react-native-gesture-handler';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import LoaderScreen from './screens/LoaderScreen';
+import SlideScreen from './screens/SlideScreen';
+import ListProductsScreen from './screens/ListProductsScreen';
+import FocusedProductScreen from './screens/FocusedProductScreen';
+import CheckOutScreen from './screens/CheckOutScreen';
 
-export default function App() {
+const Stack = createStackNavigator();
+
+const App = () => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 10000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <LoaderScreen />;
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Slides">
+        <Stack.Screen
+          name="Slides"
+          component={SlideScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ListProducts"
+          component={ListProductsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="FocusedProduct"
+          component={FocusedProductScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CheckOut"
+          component={CheckOutScreen}
+          options={{ headerShown: false }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default App;
