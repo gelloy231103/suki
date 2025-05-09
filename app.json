@@ -16,10 +16,8 @@
       "supportsTablet": true
     },
     "android": {
-<<<<<<< HEAD
-=======
+
       "package": "com.louise.suki",
->>>>>>> 6fa552fd68150b76522750b842abde1248794545
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -27,13 +25,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-<<<<<<< HEAD
-    }
-=======
+
     },
     "plugins": [
       "expo-font"
     ]
->>>>>>> 6fa552fd68150b76522750b842abde1248794545
   }
 }
