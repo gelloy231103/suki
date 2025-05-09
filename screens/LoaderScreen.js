@@ -16,7 +16,7 @@ const LoaderScreen = ({ navigation }) => {
         const newProgress = prev + increment;
         if (newProgress >= 1) {
           clearInterval(interval);
-          navigation.replace('Slides');
+          navigation.replace('Login');
         }
         return newProgress;
       });
@@ -81,8 +81,8 @@ const styles = StyleSheet.create({
     maxHeight: 500,
   },
   gif: {
-    width: 400,
-    height: 400,
+    width: 348,
+    height: 348,
   },
   progressContainer: {
     width: '100%',
