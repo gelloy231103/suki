@@ -10,7 +10,6 @@ import {
 import { auth } from "../config/firebase";
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import Icon from 'react-native-vector-icons/Ionicons';
-import button from './button';
 
 const Login = ({navigation}) => {
   const [email, setEmail] = useState('');
@@ -28,7 +27,7 @@ const Login = ({navigation}) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome back!</Text>
+      <Text style={styles.title}>Welcome back.</Text>
       <Text style={styles.subtitle}>Glad to see you again!</Text>
 
       <Text style={styles.label}>Email or Username</Text>
@@ -92,21 +91,22 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 100,
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 25,
     color: '#9DCD5A',
+    fontFamily: 'Poppins-Bold',
+    marginBottom: -15,
   },
   subtitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 25,
+    fontFamily: 'Poppins-Bold',
     marginBottom: 110,
     color: '#9DCD5A',
   },
   label: {
     fontSize: 14,
     marginBottom: 6,
-    fontWeight: '500',
     color: '#333',
+    fontFamily: 'Poppins-Regular',
   },
   input: {
     height: 48,
@@ -140,7 +140,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
-    marginBottom: 10,
   },
   loginButtonText: {
     color: '#fff',
@@ -148,9 +147,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   registerContainer: {
-  marginTop: '180',
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'flex-end',
   },
   registerText: {
     color: '#777',

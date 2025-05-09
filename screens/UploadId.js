@@ -24,7 +24,7 @@ const UploadId = ({ navigation }) => {
                 <Text style={styles.buttonText}>Click here to upload Valid ID</Text>
             </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.registerButton} onPress={() => navigation.navigate('UploadId')}>
+        <TouchableOpacity style={styles.registerButton} onPress={() => navigation.navigate('VerifyEmail')}>
             <Text style={styles.registerText}>Register</Text>
         </TouchableOpacity>
     </SafeAreaView>
