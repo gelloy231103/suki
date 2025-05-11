@@ -24,10 +24,10 @@ const slides = [
   },
 ];
 
-const SlideScreen = ({ navigation }) => {
+const OnBoarding = ({ navigation }) => { // Renamed from SlideScreen to OnBoarding for clarity
     const [currentSlide, setCurrentSlide] = useState(0);
     const pan = useRef(new Animated.ValueXY()).current;
-  
+
     const panResponder = useRef(
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
@@ -37,10 +37,8 @@ const SlideScreen = ({ navigation }) => {
         ),
         onPanResponderRelease: (e, gesture) => {
           if (gesture.dx > 50) {
-            // Swipe right - go to previous slide
             goToSlide(Math.max(currentSlide - 1, 0));
           } else if (gesture.dx < -50) {
-            // Swipe left - go to next slide
             handleNext();
           }
           Animated.spring(pan, {
@@ -50,22 +48,21 @@ const SlideScreen = ({ navigation }) => {
         }
       })
     ).current;
-  
-    const handleNext = () => {
-      if (currentSlide < slides.length - 1) {
-        setCurrentSlide(currentSlide + 1);
-      } else {
-        navigation.navigate('ListProducts');
-      }
-    };
-  
+
+      const handleNext = () => {
+        if (currentSlide < slides.length - 1) {
+          setCurrentSlide(currentSlide + 1);
+        } else {
+          navigation.navigate('MainTabs');
+        }
+      };
+
     const goToSlide = (index) => {
       setCurrentSlide(index);
     };
-  
+
     return (
       <View style={styles.container}>
-        {/* Swipeable Slide Content */}
         <Animated.View 
           style={[
             styles.slideContainer,
@@ -81,15 +78,13 @@ const SlideScreen = ({ navigation }) => {
           <Text style={styles.title}>{slides[currentSlide].title}</Text>
           <Text style={styles.description}>{slides[currentSlide].description}</Text>
         </Animated.View>
-  
-        {/* Next/Proceed Button */}
+
         <TouchableOpacity style={styles.button} onPress={handleNext}>
           <Text style={styles.buttonText}>
             {currentSlide === slides.length - 1 ? 'Proceed' : 'Next'}
           </Text>
         </TouchableOpacity>
-  
-        {/* Navigation Dots */}
+
         <View style={styles.dotsContainer}>
           {slides.map((_, index) => (
             <TouchableOpacity
@@ -104,7 +99,7 @@ const SlideScreen = ({ navigation }) => {
         </View>
       </View>
     );
-  };
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -170,4 +165,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SlideScreen;
+export default OnBoarding;

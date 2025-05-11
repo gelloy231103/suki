@@ -12,8 +12,9 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import WithMenuBar from '../components/WithMenuBar';
 
-const FocusedProduct = () => {
+const FocusedProductScreen = () => {
   const navigation = useNavigation();
   const [quantity, setQuantity] = useState(2);
   const [voucher, setVoucher] = useState('');
@@ -27,118 +28,120 @@ const FocusedProduct = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Image
-          source={require('../assets/suki-no-text-logo.png')}
-          style={styles.logo}
-        />
-        <TextInput style={styles.search} placeholder="Search" />
-      </View>
-
-      <View style={styles.imageContainer}>
-        <Image
-          source={require('../assets/tomatoes.png')}
-          style={styles.productImage}
-        />
-        <TouchableOpacity style={styles.heartIcon}>
-          <Icon name="favorite" size={24} color="red" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.dots}>
-        <View style={styles.dotActive} />
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-      </View>
-
-      <View style={styles.details}>
-        <View style={styles.row}>
-          <Text style={styles.title}>Sweet Tomatoes</Text>
-          <Text style={styles.price}>₱80/kg</Text>
+      <ScrollView style={styles.container}>
+        <View style={styles.header}>
+          <Image
+            source={require('../assets/suki-smol-logo.png')}
+            style={styles.logo}
+          />
+          <TextInput style={styles.search} placeholder="Search" />
         </View>
 
-        <View style={styles.rating}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Icon key={i} name="star" size={20} color="#4CAF50" />
-          ))}
-          <Icon name="star-border" size={20} color="#4CAF50" />
-          <Text style={styles.reviewText}>354 reviews</Text>
+        <View style={styles.imageContainer}>
+          <Image
+            source={require('../assets/tomatoes.png')}
+            style={styles.productImage}
+          />
+          <TouchableOpacity style={styles.heartIcon}>
+            <Icon name="favorite" size={24} color="red" />
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.description}>
-          Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has
-          been the industry's standard dummy text ever since the 1500s...
-        </Text>
+        <View style={styles.dots}>
+          <View style={styles.dotActive} />
+          <View style={styles.dot} />
+          <View style={styles.dot} />
+        </View>
 
-        <View style={styles.quantitySection}>
-          <Text style={styles.quantityLabel}>Quantity</Text>
-          <View style={styles.quantityControls}>
-            <TouchableOpacity onPress={handleDecrease} style={styles.qtyButton}>
-              <Text style={styles.qtyButtonText}>-</Text>
+        <View style={styles.details}>
+          <View style={styles.row}>
+            <Text style={styles.title}>Sweet Tomatoes</Text>
+            <Text style={styles.price}>₱80/kg</Text>
+          </View>
+
+          <View style={styles.rating}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Icon key={i} name="star" size={20} color="#4CAF50" />
+            ))}
+            <Icon name="star-border" size={20} color="#4CAF50" />
+            <Text style={styles.reviewText}>354 reviews</Text>
+          </View>
+
+          <Text style={styles.description}>
+            Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has
+            been the industry's standard dummy text ever since the 1500s...
+          </Text>
+
+          <View style={styles.quantitySection}>
+            <Text style={styles.quantityLabel}>Quantity</Text>
+            <View style={styles.quantityControls}>
+              <TouchableOpacity onPress={handleDecrease} style={styles.qtyButton}>
+                <Text style={styles.qtyButtonText}>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.quantityValue}>{quantity}</Text>
+              <TouchableOpacity onPress={handleIncrease} style={styles.qtyButton}>
+                <Text style={styles.qtyButtonText}>+</Text>
+              </TouchableOpacity>
+              <Text style={styles.kgText}>kg</Text>
+            </View>
+          </View>
+
+          <View style={styles.voucherSection}>
+            <TextInput
+              style={styles.voucherInput}
+              placeholder="Voucher Code"
+              value={voucher}
+              onChangeText={setVoucher}
+            />
+            <TouchableOpacity style={styles.applyButton}>
+              <Text style={styles.applyButtonText}>APPLY</Text>
             </TouchableOpacity>
-            <Text style={styles.quantityValue}>{quantity}</Text>
-            <TouchableOpacity onPress={handleIncrease} style={styles.qtyButton}>
-              <Text style={styles.qtyButtonText}>+</Text>
-            </TouchableOpacity>
-            <Text style={styles.kgText}>kg</Text>
           </View>
         </View>
 
-        <View style={styles.voucherSection}>
-          <TextInput
-            style={styles.voucherInput}
-            placeholder="Voucher Code"
-            value={voucher}
-            onChangeText={setVoucher}
-          />
-          <TouchableOpacity style={styles.applyButton}>
-            <Text style={styles.applyButtonText}>APPLY</Text>
+        <View style={styles.farmLocationSection}>
+          <View style={styles.farmHeader}>
+            <Text style={styles.farmTitle}>Farm Location</Text>
+            <View style={styles.farmNameContainer}>
+              <Icon name="home" size={18} color="#A5D86E" />
+              <Text style={styles.farmName}> Tadhana Farm Ville</Text>
+            </View>
+          </View>
+
+          <MapView
+            style={styles.mapView}
+            initialRegion={{
+              latitude: 37.78825,
+              longitude: -122.4324,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }}
+          >
+            <Marker
+              coordinate={{ latitude: 37.78825, longitude: -122.4324 }}
+              title="Tadhana Farm Ville"
+              description="Sweet Tomatoes Farm Location"
+            />
+          </MapView>
+
+          <TouchableOpacity style={styles.chatButton}>
+            <Text style={styles.chatButtonText}>Chat Farm</Text>
           </TouchableOpacity>
+
+          <View style={styles.buyNowContainer}>
+            <TouchableOpacity 
+              style={styles.buyNowButton}
+              onPress={() => navigation.navigate('CheckOut')}
+            >
+              <Text style={styles.buyNowText}>Buy Now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cartButton}>
+              <Icon name="shopping-cart" size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-      <View style={styles.farmLocationSection}>
-    <View style={styles.farmHeader}>
-      <Text style={styles.farmTitle}>Farm Location</Text>
-      <View style={styles.farmNameContainer}>
-        <Icon name="home" size={18} color="#A5D86E" />
-        <Text style={styles.farmName}> Tadhana Farm Ville</Text>
-      </View>
-    </View>
+      </ScrollView>
 
-    <MapView
-      style={styles.mapView}
-      initialRegion={{
-        latitude: 37.78825,
-        longitude: -122.4324,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }}
-    >
-      <Marker
-        coordinate={{ latitude: 37.78825, longitude: -122.4324 }}
-        title="Tadhana Farm Ville"
-        description="Sweet Tomatoes Farm Location"
-      />
-    </MapView>
-
-
-
-  <TouchableOpacity style={styles.chatButton}>
-    <Text style={styles.chatButtonText}>Chat Farm</Text>
-  </TouchableOpacity>
-
-  <View style={styles.buyNowContainer}>
-    <TouchableOpacity style={styles.buyNowButton}>
-      <Text style={styles.buyNowText}>Buy Now</Text>
-    </TouchableOpacity>
-    <TouchableOpacity style={styles.cartButton}>
-      <Icon name="shopping-cart" size={24} color="#000" />
-    </TouchableOpacity>
-  </View>
-</View>
-
-    </ScrollView>
   );
 };
 
@@ -148,6 +151,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingBottom: 20, // Added padding to prevent bottom content from being hidden
   },
   header: {
     flexDirection: 'row',
@@ -372,4 +376,4 @@ const styles = StyleSheet.create({
   
 });
 
-export default FocusedProduct;
+export default FocusedProductScreen;
