@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import WithMenuBar from '../components/WithMenuBar';
+
 
 const FocusedProductScreen = () => {
   const navigation = useNavigation();

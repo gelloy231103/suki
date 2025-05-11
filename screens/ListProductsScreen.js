@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, ScrollView, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import MenuBar from '../components/MenuBar';
 
 const categories = ['Leaf greens', 'Broccoli', 'Cauliflower', 'Spinach', 'more'];
 const products = [
