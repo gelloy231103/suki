@@ -8,10 +8,14 @@ import AppLoading from 'expo-app-loading';
 import 'react-native-gesture-handler';
 
 
+import 'react-native-gesture-handler';
+
+
 
 // Screen imports
 import LoaderScreen from './screens/LoaderScreen';
 import ListProductsScreen from './screens/ListProductsScreen';
+// import FocusedProductScreen from './screens/FocusedProductScreen';
 // import FocusedProductScreen from './screens/FocusedProductScreen';
 import CheckOutScreen from './screens/CheckOutScreen';
 import Login from './screens/Login';

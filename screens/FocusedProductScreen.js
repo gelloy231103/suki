@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 // import React, { useState } from 'react';
 // import MapView, { Marker } from 'react-native-maps';
 // import {
@@ -374,7 +374,6 @@
 // });
 
 // export default FocusedProduct;
-=======
 import React, { useState } from 'react';
 import MapView, { Marker } from 'react-native-maps';
 import {
@@ -400,9 +399,9 @@ const FocusedProductScreen = () => {
     if (quantity > 1) setQuantity(quantity - 1);
   };
 
-  const handleIncrease = () => {
-    setQuantity(quantity + 1);
-  };
+//   const handleIncrease = () => {
+//     setQuantity(quantity + 1);
+//   };
 
   return (
       <ScrollView style={styles.container}>
@@ -754,4 +753,3 @@ const styles = StyleSheet.create({
 });
 
 export default FocusedProductScreen;
->>>>>>> e709ddc80dc32a77cc5e73022cc4b9396a7b239f
