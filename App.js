@@ -11,7 +11,6 @@ import 'react-native-gesture-handler';
 
 // Screen imports
 import LoaderScreen from './screens/LoaderScreen';
-import SlideScreen from './screens/SlideScreen';
 import ListProductsScreen from './screens/ListProductsScreen';
 // import FocusedProductScreen from './screens/FocusedProductScreen';
 import CheckOutScreen from './screens/CheckOutScreen';
@@ -22,12 +21,13 @@ import UploadId from './screens/UploadId';
 import VerifyEmail from './screens/VerifyEmail';
 import WelcomeToFam from './screens/WelcomeToFam';
 import Verified from './screens/Verified';
-import Onboarding from './screens/OnBoarding';
+import DashboardScreen from './screens/dashboardScreen'; 
 import ProfileDashboard from './screens/ProfileDashboard';
 import EditUserProfile from './screens/EditUserProfile';
 import WalletScreen from './screens/Wallet';
 import { AuthProvider } from './context/AuthContext';
 import AddCardScreen from './screens/AddCardScreen';
+import OnBoarding from './screens/OnBoarding';
 import MainTab from './navigation/MainTab';
 
 const Stack = createStackNavigator();
@@ -41,64 +41,7 @@ const theme = {
     accent: '#8BC34A',
   },
 };
-const MainTabs = () => (
-  <Tab.Navigator
-    screenOptions={{
-      headerShown: false,
-      tabBarActiveTintColor: '#9DCD5A',
-      tabBarInactiveTintColor: '#666',
-      tabBarStyle: {
-        height: 70,
-        paddingBottom: 5,
-        borderTopWidth: 1,
-        borderTopColor: '#EEE',
-        elevation: 10,
-        shadowOpacity: 0.1,
-      },
-    }}
-  >
-    <Tab.Screen
-      name="Dashboard"
-      component={DashboardScreen}
-      options={{
-        tabBarIcon: ({ color }) => <Icon name="home" size={24} color={color} />,
-        tabBarLabel: 'Home',
-      }}
-    />
-    <Tab.Screen
-      name="ListProducts"
-      component={ListProductsScreen}
-      options={{
-        tabBarIcon: ({ color }) => <Icon name="search" size={24} color={color} />,
-        tabBarLabel: 'Browse',
-      }}
-    />
-    <Tab.Screen
-      name="Cart"
-      component={CheckOutScreen} // Replace with CartScreen if different
-      options={{
-        tabBarIcon: ({ color }) => <Icon name="shopping-cart" size={24} color={color} />,
-        tabBarLabel: 'Cart',
-      }}
-    />
-    <Tab.Screen
-      name="Messages"
-      component={ProfileDashboard} // Placeholder (replace with MessagesScreen)
-      options={{
-        tabBarIcon: ({ color }) => <Icon name="message" size={24} color={color} />,
-        tabBarLabel: 'Messages',
-      }}
-    />
-    <Tab.Screen
-      name="ProfileDashboard"
-      component={ProfileDashboard}
-      options={{
-        tabBarIcon: ({ color }) => <Icon name="person" size={24} color={color} />,
-        tabBarLabel: 'Me',
-      }}
-    />
-  </Tab.Navigator>
-);
+
 // Font loading function
 const fetchFonts = () => {
   return Font.loadAsync({
@@ -186,7 +129,7 @@ const App = () => {
             />
             <Stack.Screen
               name="OnBoarding"
-              component={Onboarding}
+              component={OnBoarding}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -205,8 +148,8 @@ const App = () => {
               options={{ headerShown: false }}
             />
           <Stack.Screen
-            name="MainTabs"
-            component={MainTabs}
+            name="MainTab"
+            component={MainTab}
             options={{ headerShown: false }}
           />
             <Stack.Screen
