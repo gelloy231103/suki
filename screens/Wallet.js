@@ -1,10 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-
-export default function Wallet() {
+const Wallet = () => {
+  const [showBalance, setShowBalance] = useState(false);
+  
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headContainer}>
@@ -16,22 +17,39 @@ export default function Wallet() {
           </View>
         </View>
         <View style={styles.balanceContainer}>
-
+          <Text style={styles.balanceLabel}>Suki Balance</Text>
+            <View style={styles.balance}>
+              <Text style={styles.balanceAmount}><Text>₱</Text>
+                {showBalance ? '300.25' : '••••.••'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowBalance(!showBalance)}
+                style={styles.eyeIcon}
+              >
+                <Ionicons
+                  name={showBalance ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            </View>
         </View>
       </View>
     </SafeAreaView>
-  )
-}
+  );
+};
+
+export default Wallet;
 
 const styles = StyleSheet.create({
-  container:{
+  container: {
     flex: 1,
-    backgroundColor: 'red',
+    backgroundColor: '#fff',
   },
-  headContainer:{
+  headContainer: {
     padding: 15,
     height: 150,
-    backgroundColor: 'blue',
+    backgroundColor: '#9DCD5A', // Green color
     borderBottomRightRadius: 30,
     borderBottomLeftRadius: 30,
   },
@@ -45,10 +63,26 @@ const styles = StyleSheet.create({
     width: 60, 
     justifyContent: 'space-between' 
   },
-  balanceContainer:{
-    backgroundColor: 'green',
-    height: 100,
+  balanceContainer: {
+    marginTop: 20,
+    paddingHorizontal: 15,
+    backgroundColor: 'red'
+  },
+  balanceLabel: {
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  balanceAmount: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  eyeIcon: {
+    alignSelf: 'flex-start',
+  },
+  balance: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
   }
-})
+});
