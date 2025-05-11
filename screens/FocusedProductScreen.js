@@ -1,499 +1,375 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, Animated, Dimensions } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TextInput,
+  Dimensions,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const { width } = Dimensions.get('window');
-
-const productImages = [
-  require('../assets/tomatoes.png'),
-  require('../assets/turnip.png'),
-  require('../assets/onions.png'),
-];
-
-const FocusedProductScreen = ({ route }) => {
+const FocusedProduct = () => {
   const navigation = useNavigation();
   const [quantity, setQuantity] = useState(2);
-  const [voucherCode, setVoucherCode] = useState('');
-  const [showSummary, setShowSummary] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const scrollX = new Animated.Value(0);
+  const [voucher, setVoucher] = useState('');
 
-  const { product } = route.params || {
-    name: 'Sweet Tomatoes',
-    price: 80,
-    rating: 4,
-    reviews: 354,
-    farm: 'Tadhana Farm Ville',
-    description: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry...'
+  const handleDecrease = () => {
+    if (quantity > 1) setQuantity(quantity - 1);
   };
 
-  const incrementQuantity = () => setQuantity(prev => prev + 1);
-  const decrementQuantity = () => setQuantity(prev => (prev > 1 ? prev - 1 : 1));
-  const toggleSummary = () => setShowSummary(!showSummary);
-
-  const renderStars = () => {
-    return (
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Icon 
-            key={i}
-            name={i <= product.rating ? 'star' : 'star-border'}
-            size={20}
-            color={i <= product.rating ? '#FFD700' : '#CCCCCC'}
-          />
-        ))}
-      </View>
-    );
-  };
-
-  const renderImagePagination = () => {
-    return (
-      <View style={styles.pagination}>
-        {productImages.map((_, i) => (
-          <View 
-            key={i}
-            style={[
-              styles.paginationDot,
-              currentImageIndex === i && styles.paginationDotActive
-            ]}
-          />
-        ))}
-      </View>
-    );
+  const handleIncrease = () => {
+    setQuantity(quantity + 1);
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#403F3F" />
-        </TouchableOpacity>
+        <Image
+          source={require('../assets/suki-no-text-logo.png')}
+          style={styles.logo}
+        />
+        <TextInput style={styles.search} placeholder="Search" />
+      </View>
 
-        <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Icon name="message" size={24} color="#403F3F" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Icon name="shopping-bag" size={24} color="#403F3F" />
+      <View style={styles.imageContainer}>
+        <Image
+          source={require('../assets/tomatoes.png')}
+          style={styles.productImage}
+        />
+        <TouchableOpacity style={styles.heartIcon}>
+          <Icon name="favorite" size={24} color="red" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.dots}>
+        <View style={styles.dotActive} />
+        <View style={styles.dot} />
+        <View style={styles.dot} />
+      </View>
+
+      <View style={styles.details}>
+        <View style={styles.row}>
+          <Text style={styles.title}>Sweet Tomatoes</Text>
+          <Text style={styles.price}>₱80/kg</Text>
+        </View>
+
+        <View style={styles.rating}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Icon key={i} name="star" size={20} color="#4CAF50" />
+          ))}
+          <Icon name="star-border" size={20} color="#4CAF50" />
+          <Text style={styles.reviewText}>354 reviews</Text>
+        </View>
+
+        <Text style={styles.description}>
+          Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has
+          been the industry's standard dummy text ever since the 1500s...
+        </Text>
+
+        <View style={styles.quantitySection}>
+          <Text style={styles.quantityLabel}>Quantity</Text>
+          <View style={styles.quantityControls}>
+            <TouchableOpacity onPress={handleDecrease} style={styles.qtyButton}>
+              <Text style={styles.qtyButtonText}>-</Text>
+            </TouchableOpacity>
+            <Text style={styles.quantityValue}>{quantity}</Text>
+            <TouchableOpacity onPress={handleIncrease} style={styles.qtyButton}>
+              <Text style={styles.qtyButtonText}>+</Text>
+            </TouchableOpacity>
+            <Text style={styles.kgText}>kg</Text>
+          </View>
+        </View>
+
+        <View style={styles.voucherSection}>
+          <TextInput
+            style={styles.voucherInput}
+            placeholder="Voucher Code"
+            value={voucher}
+            onChangeText={setVoucher}
+          />
+          <TouchableOpacity style={styles.applyButton}>
+            <Text style={styles.applyButtonText}>APPLY</Text>
           </TouchableOpacity>
         </View>
       </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Image Gallery */}
-        <View style={styles.imageGalleryContainer}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-              { useNativeDriver: false }
-            )}
-            scrollEventThrottle={16}
-            onMomentumScrollEnd={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / width);
-              setCurrentImageIndex(index);
-            }}
-          >
-            {productImages.map((image, index) => (
-              <Image
-                key={index}
-                source={image}
-                style={styles.productImage}
-                resizeMode="cover"
-              />
-            ))}
-          </ScrollView>
-          {renderImagePagination()}
-        </View>
-
-        {/* Product Info */}
-        <View style={styles.productInfo}>
-          <Text style={styles.productName}>{product.name}</Text>
-
-          <View style={styles.ratingContainer}>
-            {renderStars()}
-            <Text style={styles.reviewText}>{product.reviews} reviews</Text>
-          </View>
-
-          <Text style={styles.productPrice}>{product.price}</Text>
-          <Text style={styles.productDescription}>{product.description}</Text>
-        </View>
-
-        {/* Quantity Selector */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quantity</Text>
-          <View style={styles.quantitySelector}>
-            <TouchableOpacity
-              onPress={decrementQuantity}
-              style={styles.quantityButton}
-            >
-              <Icon name="remove" size={20} color="#9DCD5A" />
-            </TouchableOpacity>
-            <Text style={styles.quantityText}>{quantity}</Text>
-            <TouchableOpacity
-              onPress={incrementQuantity}
-              style={styles.quantityButton}
-            >
-              <Icon name="add" size={20} color="#9DCD5A" />
-            </TouchableOpacity>
-            <Text style={styles.quantityUnit}>kg</Text>
-          </View>
-        </View>
-
-        {/* Voucher Code */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Voucher Code</Text>
-          <View style={styles.voucherContainer}>
-            <TextInput
-              style={styles.voucherInput}
-              placeholder="Enter voucher code"
-              value={voucherCode}
-              onChangeText={setVoucherCode}
-            />
-            <TouchableOpacity style={styles.applyButton}>
-              <Text style={styles.applyButtonText}>APPLY</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Farm Location */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Farm Location</Text>
-          <View style={styles.farmLocation}>
-            <Text style={styles.farmName}>{product.farm}</Text>
-          </View>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.chatButton}>
-            <Text style={styles.chatButtonText}>Chat Farm</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.buyButton} onPress={toggleSummary}>
-            <Text style={styles.buyButtonText}>Buy Now</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-
-      {/* Order Summary Modal */}
-      {showSummary && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.summaryContainer}>
-            <Text style={styles.summaryTitle}>Order Summary</Text>
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Price:</Text>
-              <Text style={styles.summaryValue}>
-                P{product.price * quantity}
-              </Text>
-            </View>
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Quantity:</Text>
-              <Text style={styles.summaryValue}>{quantity} kg</Text>
-            </View>
-
-            {voucherCode && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Discount:</Text>
-                <Text style={styles.summaryValue}>
-                  -P{(product.price * quantity * 0.1).toFixed(2)}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Shipping:</Text>
-              <Text style={styles.summaryValue}>P50.00</Text>
-            </View>
-
-            <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={[styles.summaryLabel, styles.totalLabel]}>
-                Total:
-              </Text>
-              <Text style={[styles.summaryValue, styles.totalValue]}>
-                P
-                {(
-                  product.price * quantity -
-                  (voucherCode ? product.price * quantity * 0.1 : 0) +
-                  50
-                ).toFixed(2)}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.checkoutButton}
-              onPress={() => {
-                navigation.navigate("CheckOut"); // This navigates to CheckOutScreen
-                setShowSummary(false); // This closes the modal
-              }}
-            >
-              <Text style={styles.checkoutButtonText}>Check Out</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={toggleSummary}
-            >
-              <Icon name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      <View style={styles.farmLocationSection}>
+    <View style={styles.farmHeader}>
+      <Text style={styles.farmTitle}>Farm Location</Text>
+      <View style={styles.farmNameContainer}>
+        <Icon name="home" size={18} color="#A5D86E" />
+        <Text style={styles.farmName}> Tadhana Farm Ville</Text>
+      </View>
     </View>
+
+    <MapView
+      style={styles.mapView}
+      initialRegion={{
+        latitude: 37.78825,
+        longitude: -122.4324,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }}
+    >
+      <Marker
+        coordinate={{ latitude: 37.78825, longitude: -122.4324 }}
+        title="Tadhana Farm Ville"
+        description="Sweet Tomatoes Farm Location"
+      />
+    </MapView>
+
+
+
+  <TouchableOpacity style={styles.chatButton}>
+    <Text style={styles.chatButtonText}>Chat Farm</Text>
+  </TouchableOpacity>
+
+  <View style={styles.buyNowContainer}>
+    <TouchableOpacity style={styles.buyNowButton}>
+      <Text style={styles.buyNowText}>Buy Now</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.cartButton}>
+      <Icon name="shopping-cart" size={24} color="#000" />
+    </TouchableOpacity>
+  </View>
+</View>
+
+    </ScrollView>
   );
 };
+
+const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 16,
-    paddingTop: 50,
-    backgroundColor: '#F9F9F9',
+    alignItems: 'center',
   },
-  headerIcons: {
-    flexDirection: 'row',
+  logo: {
+    width: 50,
+    height: 50,
+    resizeMode: 'contain',
+    marginRight: 10,
   },
-  headerIcon: {
-    marginLeft: 16,
+  search: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 40,
   },
-  content: {
-    paddingBottom: 20,
-  },
-  imageGalleryContainer: {
-    height: 300,
+  imageContainer: {
     position: 'relative',
+    alignItems: 'center',
   },
   productImage: {
-    width,
-    height: 300,
+    width: width - 40,
+    height: 250,
+    resizeMode: 'contain',
+    borderRadius: 12,
+    marginVertical: 10,
   },
-  pagination: {
+  heartIcon: {
     position: 'absolute',
-    bottom: 20,
-    flexDirection: 'row',
-    alignSelf: 'center',
+    top: 10,
+    right: 20,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 5,
   },
-  paginationDot: {
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#CCC',
-    marginHorizontal: 4,
+    backgroundColor: '#ccc',
+    margin: 4,
   },
-  paginationDotActive: {
-    backgroundColor: '#9DCD5A',
-    width: 16,
+  dotActive: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4CAF50',
+    margin: 4,
   },
-  productInfo: {
-    padding: 16,
+  details: {
+    paddingHorizontal: 20,
   },
-  productName: {
-    fontSize: 24,
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: {
     fontWeight: 'bold',
-    color: '#403F3F',
-    marginBottom: 8,
+    fontSize: 20,
   },
-  ratingContainer: {
+  price: {
+    color: '#00C853',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  rating: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    marginRight: 8,
+    marginVertical: 8,
   },
   reviewText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  productPrice: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#9DCD5A',
-    marginBottom: 16,
-  },
-  productDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  section: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#EEE',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#403F3F',
-    marginBottom: 12,
-  },
-  quantitySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  quantityButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#9DCD5A',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quantityText: {
-    fontSize: 18,
-    marginHorizontal: 16,
-    color: '#403F3F',
-  },
-  quantityUnit: {
-    fontSize: 16,
     marginLeft: 8,
-    color: '#666',
+    color: '#777',
+    fontSize: 12,
   },
-  voucherContainer: {
+  description: {
+    fontSize: 14,
+    color: '#444',
+    marginVertical: 10,
+  },
+  quantitySection: {
+    marginVertical: 10,
+  },
+  quantityLabel: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 6,
+  },
+  quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  qtyButton: {
+    backgroundColor: '#ccc',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  qtyButtonText: {
+    fontSize: 18,
+  },
+  quantityValue: {
+    marginHorizontal: 10,
+    fontSize: 16,
+  },
+  kgText: {
+    marginLeft: 10,
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#00C853',
+  },
+  voucherSection: {
+    flexDirection: 'row',
+    marginTop: 16,
+    marginBottom: 30,
   },
   voucherInput: {
     flex: 1,
-    height: 40,
     borderWidth: 1,
-    borderColor: '#DDD',
+    borderColor: '#ccc',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    marginRight: 8,
+    paddingHorizontal: 10,
+    height: 40,
   },
   applyButton: {
-    backgroundColor: '#9DCD5A',
+    backgroundColor: '#A5D86E',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    marginLeft: 10,
     borderRadius: 8,
   },
   applyButtonText: {
-    color: '#FFF',
+    color: '#fff',
     fontWeight: 'bold',
   },
-  farmLocation: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  farmLocationSection: {
+    paddingHorizontal: 20,
   },
-  farmName: {
-    fontSize: 16,
-    color: '#403F3F',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    padding: 16,
-    paddingTop: 8,
-  },
-  chatButton: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#9DCD5A',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  chatButtonText: {
-    color: '#9DCD5A',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  buyButton: {
-    flex: 1,
-    backgroundColor: '#9DCD5A',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  buyButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  summaryContainer: {
-    backgroundColor: '#FFF',
-    width: '90%',
-    borderRadius: 12,
-    padding: 20,
-    position: 'relative',
-  },
-  summaryTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#403F3F',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  summaryRow: {
+  farmHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  totalRow: {
-    borderTopWidth: 1,
-    borderTopColor: '#EEE',
-    paddingTop: 12,
-    marginTop: 8,
-  },
-  summaryLabel: {
-    fontSize: 16,
-    color: '#666',
-  },
-  summaryValue: {
-    fontSize: 16,
-    color: '#403F3F',
-    fontWeight: 'bold',
-  },
-  totalLabel: {
-    fontSize: 18,
-  },
-  totalValue: {
-    fontSize: 18,
-    color: '#9DCD5A',
-  },
-  checkoutButton: {
-    backgroundColor: '#9DCD5A',
-    borderRadius: 8,
-    padding: 16,
     alignItems: 'center',
-    marginTop: 20,
+    marginBottom: 10,
   },
-  checkoutButtonText: {
-    color: '#FFF',
+  farmTitle: {
     fontWeight: 'bold',
     fontSize: 16,
   },
-  closeButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    padding: 8,
+  farmNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
+  farmName: {
+    color: '#A5D86E',
+    fontWeight: '500',
+  },
+  mapImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  chatButton: {
+    backgroundColor: '#000',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  chatButtonText: {
+    color: '#A5D86E',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  buyNowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 30,
+  },
+  buyNowButton: {
+    backgroundColor: '#A5D86E',
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  buyNowText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  cartButton: {
+    backgroundColor: '#F2F0ED',
+    padding: 14,
+    borderRadius: 14,
+  },
+  mapView: {
+    width: '100%',
+    height: 180,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  
+  
 });
 
-export default FocusedProductScreen;
+export default FocusedProduct;

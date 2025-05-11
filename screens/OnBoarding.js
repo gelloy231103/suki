@@ -1,172 +1,173 @@
-// screens/Onboarding.js (corrected)
-import React, { useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
-import Swiper from 'react-native-swiper';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, PanResponder, Animated } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const slides = [
-  { 
-    key: '1', 
-    title: 'Find Local Farms Nearby', 
-    description: 'Discover nearby farms and buy fresh produce directly from the source—fast, easy, and local.', 
-    image: require('../assets/images/OB1.png') 
+  {
+    id: '1',
+    title: 'Find Local Farms Nearby',
+    description: 'Discover nearby farms and buy fresh produce directly from the source—fast, easy, and local.',
+    image: require('../assets/Slide1.png'), 
   },
-  { 
-    key: '2', 
-    title: 'Connect with farmers directly', 
-    description: 'Chat, order, and build relationships with real farmers—no middlemen, just real food.', 
-    image: require('../assets/images/OB2.png') 
+  {
+    id: '2',
+    title: 'Connect with farmers directly',
+    description: 'Chat, order, and build relationships with real farmers—no middlemen, just real food.',
+    image: require('../assets/Slide2.png'), 
   },
-  { 
-    key: '3', 
-    title: 'Get Fresh Produce Delivered', 
-    description: 'Enjoy fresh, affordable farm goods delivered to your doorstep or ready for pickup.', 
-    image: require('../assets/images/OB3.png') 
+  {
+    id: '3',
+    title: 'Get Fresh Produce Delivered',
+    description: 'Enjoy fresh, affordable farm goods delivered to your doorstep or ready for pickup.',
+    image: require('../assets/Slide3.png'), 
   },
 ];
 
-const OnboardingScreen = () => {
-  const navigation = useNavigation();
-  const swiperRef = useRef(null);
-
-  const onFinish = () => {
-    navigation.navigate('WelcomeToFam');
-  };
-
-  return (
-    <View style={styles.container}>
-      <Swiper
-        ref={swiperRef}
-        loop={false}
-        showsPagination={true}
-        dotStyle={styles.inactiveDot}
-        activeDotStyle={styles.activeDot}
-        paginationStyle={styles.paginationStyle}
-      >
-        {slides.map((slide, index) => (
-          <View style={styles.slide} key={slide.key}>
-            <Image 
-              source={slide.image} 
-              style={styles.image} 
-              resizeMode="contain" 
+const SlideScreen = ({ navigation }) => {
+    const [currentSlide, setCurrentSlide] = useState(0);
+    const pan = useRef(new Animated.ValueXY()).current;
+  
+    const panResponder = useRef(
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderMove: Animated.event(
+          [null, { dx: pan.x }],
+          { useNativeDriver: false }
+        ),
+        onPanResponderRelease: (e, gesture) => {
+          if (gesture.dx > 50) {
+            // Swipe right - go to previous slide
+            goToSlide(Math.max(currentSlide - 1, 0));
+          } else if (gesture.dx < -50) {
+            // Swipe left - go to next slide
+            handleNext();
+          }
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false
+          }).start();
+        }
+      })
+    ).current;
+  
+    const handleNext = () => {
+      if (currentSlide < slides.length - 1) {
+        setCurrentSlide(currentSlide + 1);
+      } else {
+        navigation.navigate('ListProducts');
+      }
+    };
+  
+    const goToSlide = (index) => {
+      setCurrentSlide(index);
+    };
+  
+    return (
+      <View style={styles.container}>
+        {/* Swipeable Slide Content */}
+        <Animated.View 
+          style={[
+            styles.slideContainer,
+            { transform: [{ translateX: pan.x }] }
+          ]}
+          {...panResponder.panHandlers}
+        >
+          <Image 
+            source={slides[currentSlide].image} 
+            style={styles.slideImage} 
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>{slides[currentSlide].title}</Text>
+          <Text style={styles.description}>{slides[currentSlide].description}</Text>
+        </Animated.View>
+  
+        {/* Next/Proceed Button */}
+        <TouchableOpacity style={styles.button} onPress={handleNext}>
+          <Text style={styles.buttonText}>
+            {currentSlide === slides.length - 1 ? 'Proceed' : 'Next'}
+          </Text>
+        </TouchableOpacity>
+  
+        {/* Navigation Dots */}
+        <View style={styles.dotsContainer}>
+          {slides.map((_, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.dot,
+                currentSlide === index && styles.activeDot,
+              ]}
+              onPress={() => goToSlide(index)}
             />
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>{slide.title}</Text>
-              <Text style={styles.description}>{slide.description}</Text>
-            </View>
-
-            {index === slides.length - 1 ? (
-              <TouchableOpacity 
-                style={styles.finishButton} 
-                onPress={onFinish}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.finishButtonText}>Get Started</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={onFinish}
-              >
-                <Text style={styles.skipText}>Skip</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
-      </Swiper>
-    </View>
-  );
-};
+          ))}
+        </View>
+      </View>
+    );
+  };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  slide: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: height * 0.1,
-    paddingBottom: height * 0.15,
-    paddingHorizontal: 30,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
   },
-  image: {
+  slideContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  slideImage: {
     width: width * 0.8,
     height: width * 0.8,
     marginBottom: 30,
   },
-  textContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
   title: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#2D2D2D',
+    fontWeight: 'bold',
+    color: '#403F3F',
     textAlign: 'center',
-    marginBottom: 15,
-    fontFamily: 'Poppins-Bold',
-    lineHeight: 32,
+    marginBottom: 16,
   },
   description: {
     fontSize: 16,
-    color: '#6B6B6B',
+    color: '#666',
     textAlign: 'center',
-    fontFamily: 'Poppins-Regular',
-    lineHeight: 24,
     paddingHorizontal: 20,
+    lineHeight: 24,
   },
-  finishButton: {
-    backgroundColor: '#8CC63F',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 30,
-    width: '100%',
-    alignItems: 'center',
+  dotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: 20,
   },
-  finishButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  skipButton: {
-    position: 'absolute',
-    top: 50,
-    right: 25,
-    padding: 10,
-  },
-  skipText: {
-    color: '#8CC63F',
-    fontSize: 16,
-    fontFamily: 'Poppins-Medium',
-  },
-  inactiveDot: {
-    backgroundColor: '#cdeaa9',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    margin: 3,
+  dot: {
+    width: 40,
+    height: 15,
+    borderRadius: 5,
+    backgroundColor: '#CCCCCC',
+    marginHorizontal: 3,
   },
   activeDot: {
-    backgroundColor: '#8CC63F',
-    width: 25,
-    height: 8,
-    borderRadius: 4,
-    margin: 3,
+    backgroundColor: '#9DCD5A',
   },
-  paginationStyle: {
-    bottom: height * 0.12,
+  button: {
+    backgroundColor: '#9DCD5A',
+    paddingVertical: 15,
+    paddingHorizontal: 80,
+    borderRadius: 15,
+    marginTop: 5,
+    marginBottom: 40,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 
-export default OnboardingScreen;
+export default SlideScreen;
