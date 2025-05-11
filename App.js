@@ -13,7 +13,7 @@ import 'react-native-gesture-handler';
 import LoaderScreen from './screens/LoaderScreen';
 import SlideScreen from './screens/SlideScreen';
 import ListProductsScreen from './screens/ListProductsScreen';
-import FocusedProductScreen from './screens/FocusedProductScreen';
+// import FocusedProductScreen from './screens/FocusedProductScreen';
 import CheckOutScreen from './screens/CheckOutScreen';
 import Login from './screens/Login';
 import LandingScreen from './screens/LandingScreen';
@@ -70,7 +70,7 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
-            initialRouteName="WalletScreen"
+            initialRouteName="LandingScreen"
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
@@ -86,11 +86,11 @@ const App = () => {
               component={ListProductsScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen
+            {/* <Stack.Screen
               name="FocusedProduct"
               component={FocusedProductScreen}
               options={{ headerShown: false }}
-            />
+            /> */}
             <Stack.Screen
               name="CheckOut"
               component={CheckOutScreen}
