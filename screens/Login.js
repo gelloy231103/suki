@@ -1,29 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image
+  ActivityIndicator
 } from 'react-native';
-import { auth } from "../config/firebase";
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { auth, db } from "../config/firebase";
+import { doc, getDoc } from "firebase/firestore"; 
 
 const Login = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Get the auth context functions
+  const { saveUserData } = useContext(AuthContext);
 
   const signIn = async () => {
+    if (!email || !password) {
+      alert('Please enter both email and password');
+      return;
+    }
+  
+    setIsLoading(true);
+    
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      alert('Login successful!');
+      // 1. Authenticate user
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // 2. Get user document from Firestore
+      const userDocRef = doc(db, "users", userCredential.user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        
+        // 3. Save all user data to context
+        await saveUserData(
+          userCredential.user.email,
+          userCredential.user.uid,
+          {
+            firstName: userData.basicInfo.firstName,
+            lastName: userData.basicInfo.lastName,
+            middleName: userData.basicInfo.middleName
+          }
+        );
+        {console.log(userData)}
+        
+        navigation.navigate('ProfileDashboard');
+      } else {
+        throw new Error("User profile not found in database");
+      }
     } catch (error) {
-      alert(error.message);
+      console.error("Login error:", error);
+      let errorMessage = "Login failed. Please try again.";
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = "No account found with this email.";
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = "Incorrect password.";
+      } else if (error.message.includes("User profile not found")) {
+        errorMessage = "Account exists but profile is incomplete.";
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
+
 
   return (
     <View style={styles.container}>
@@ -64,8 +115,16 @@ const Login = ({navigation}) => {
         <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.loginButton} onPress={signIn}>
-        <Text style={styles.loginButtonText}>Login</Text>
+      <TouchableOpacity 
+        style={styles.loginButton} 
+        onPress={signIn}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.loginButtonText}>Login</Text>
+        )}
       </TouchableOpacity>
 
        <View style={styles.registerContainer}>
@@ -158,5 +217,13 @@ const styles = StyleSheet.create({
   registerNow: {
     color: '#9DCD5A',
     fontWeight: '600',
+  },
+  loginButton: {
+    backgroundColor: '#A4DC4C',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48, 
   },
 });

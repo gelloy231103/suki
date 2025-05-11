@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView, Alert, ActivityIndicator 
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import PasswordStrengthMeterBar from 'react-native-password-strength-meter-bar';
-
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { auth, db } from '../config/firebase'; // Import Firebase functions
 
 const RegisterScreen = ({ navigation }) => {
   const [form, setForm] = useState({
@@ -18,79 +20,160 @@ const RegisterScreen = ({ navigation }) => {
   });
 
   const [touched, setTouched] = useState({});
-  const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState({});
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const validateName = (name) => /^[A-Za-z\-']{2,50}$/.test(name);
-  const validateEmail = (email) => /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email);
-  const validatePhone = (phone) => /^\d{10,15}$/.test(phone);
+  // Validation functions
+  const validateName = (name) => /^[A-Za-z\-'\s]{2,50}$/.test(name.trim());
+  const validateEmail = (email) => /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email.trim());
+  const validatePhone = (phone) => /^\d{10,15}$/.test(phone.trim());
   const validatePassword = (password) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$%^&+=!]).{8,}$/.test(password);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    if (!validateForm()) return;
+    setIsLoading(true);
+  
+    try {
+      // 1. Create auth user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        form.email,
+        form.password
+      );
+
+      // 2. Send verification email
+      await sendEmailVerification(userCredential.user);
+
+      // 3. Save user data to Firestore - matches your screenshot structure
+      const userData = {
+        basicInfo: {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          middleName: form.middleName || '', // Empty string instead of null
+          email: form.email,
+          phone: form.phone,
+          emailVerified: false,
+          profileImage: '', // Empty string to match your structure
+          createdAt: serverTimestamp(),
+          lastUpdated: serverTimestamp()
+        },
+        security: {
+          lastLogin: null,
+          twoFactorEnabled: false // Matches your screenshot's camelCase
+        }
+      };
+
+      await setDoc(doc(db, "users", userCredential.user.uid), userData);
+
+      // 4. Navigate to verification screen
+      navigation.navigate('VerifyEmail', {
+        email: form.email,
+        userId: userCredential.user.uid
+      });
+
+    } catch (error) {
+      console.error("Registration error:", error);
+      handleAuthError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAuthError = (error) => {
+    console.error("Registration error:", error);
+    switch (error.code) {
+      case 'auth/email-already-in-use':
+        setErrors(prev => ({...prev, email: 'Email is already registered'}));
+        break;
+      case 'auth/invalid-email':
+        setErrors(prev => ({...prev, email: 'Invalid email address'}));
+        break;
+      case 'auth/weak-password':
+        setErrors(prev => ({...prev, password: 'Password is too weak'}));
+        break;
+      default:
+        Alert.alert("Registration Error", "An error occurred during registration. Please try again.");
+    }
+  };
+
+  // Form validation
+  const validateForm = () => {
     let valid = true;
     let newErrors = {};
-    setIsSubmitted(true);
 
-    if (!validateName(form.firstName)) {
-      newErrors.firstName = "Please enter a valid name (letters only, min 2 characters).";
+    if (!form.firstName.trim()) {
+      newErrors.firstName = "First name is required";
+      valid = false;
+    } else if (!validateName(form.firstName)) {
+      newErrors.firstName = "Please enter a valid name (letters only, min 2 characters)";
       valid = false;
     }
 
-    if (!validateName(form.lastName)) {
-      newErrors.lastName = "Please enter a valid name (letters only, min 2 characters).";
+    if (!form.lastName.trim()) {
+      newErrors.lastName = "Last name is required";
+      valid = false;
+    } else if (!validateName(form.lastName)) {
+      newErrors.lastName = "Please enter a valid name (letters only, min 2 characters)";
       valid = false;
     }
     
-    if (form.middleName && !validateName(form.middleName)) {
-      newErrors.middleName = "Please enter a valid name (letters only, min 2 characters).";
+    if (form.middleName.trim() && !validateName(form.middleName)) {
+      newErrors.middleName = "Please enter a valid name (letters only, min 2 characters)";
       valid = false;
     }
 
-    if (!validateEmail(form.email)) {
-      newErrors.email = "Please enter a valid email address.";
+    if (!form.email.trim()) {
+      newErrors.email = "Email is required";
+      valid = false;
+    } else if (!validateEmail(form.email)) {
+      newErrors.email = "Please enter a valid email address";
       valid = false;
     }
 
-    if (!validatePhone(form.phone)) {
-      newErrors.phone = "Please enter a valid phone number.";
+    if (!form.phone.trim()) {
+      newErrors.phone = "Phone number is required";
+      valid = false;
+    } else if (!validatePhone(form.phone)) {
+      newErrors.phone = "Please enter a valid phone number (10-15 digits)";
       valid = false;
     }
 
-    if (!validatePassword(form.password)) {
-      newErrors.password = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.";
+    if (!form.password) {
+      newErrors.password = "Password is required";
+      valid = false;
+    } else if (!validatePassword(form.password)) {
+      newErrors.password = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character";
       valid = false;
     }
 
-    if (form.password !== form.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match.";
+    if (!form.confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password";
+      valid = false;
+    } else if (form.password !== form.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
       valid = false;
     }
 
     setErrors(newErrors);
-
-    if (valid) {
-      navigation.navigate('UploadId');
-    }
+    return valid;
   };
 
   const handleInputChange = (field, value) => {
-    setForm({ ...form, [field]: value });
+    setForm(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
     if (errors[field]) {
-      setErrors((prevErrors) => ({ ...prevErrors, [field]: '' }));
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  const handleFocus = (name) => {
-    setTouched({ ...touched, [name]: true });
-    setSubmitted(false);
+  const handleFocus = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
   };
 
-  const isValid = Object.values(form).every((val) => val.trim() !== '');
-
+  // Calculate password strength
   useEffect(() => {
     const score = calculatePasswordStrength(form.password);
     setPasswordStrength(score);
@@ -110,19 +193,36 @@ const RegisterScreen = ({ navigation }) => {
     return 'Strong';
   };
 
+  // Check if all required fields are filled
+  const isFormValid = () => {
+    return (
+      form.firstName.trim() &&
+      form.lastName.trim() &&
+      form.email.trim() &&
+      form.phone.trim() &&
+      form.password &&
+      form.confirmPassword
+    );
+  };
+
+
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer} 
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.title}>Create an Account.</Text>
         <Text style={styles.subtitle}>
           Join Suki and Connect with Fresh, Local Produce! Create your account by filling up the form below.
         </Text>
 
+        {/* First Name */}
         <Text style={styles.label}>First name.</Text>
         <TextInput
           style={[
             styles.input,
-            errors.firstName ? styles.inputError : (isSubmitted && form.firstName && !errors.firstName ? styles.inputSuccess : null),
+            errors.firstName ? styles.inputError : (touched.firstName && form.firstName && !errors.firstName ? styles.inputSuccess : null),
           ]}
           placeholder="First Name"
           value={form.firstName}
@@ -131,11 +231,12 @@ const RegisterScreen = ({ navigation }) => {
         />
         {errors.firstName && <Text style={styles.validationText}>{errors.firstName}</Text>}
 
+        {/* Last Name */}
         <Text style={styles.label}>Last name.</Text>
         <TextInput
           style={[
             styles.input,
-            errors.lastName ? styles.inputError : (isSubmitted && form.lastName && !errors.lastName ? styles.inputSuccess : null),
+            errors.lastName ? styles.inputError : (touched.lastName && form.lastName && !errors.lastName ? styles.inputSuccess : null),
           ]}
           placeholder="Last Name"
           value={form.lastName}
@@ -144,38 +245,42 @@ const RegisterScreen = ({ navigation }) => {
         />
         {errors.lastName && <Text style={styles.validationText}>{errors.lastName}</Text>}
 
+        {/* Middle Name */}
         <Text style={styles.label}>Middle Name.</Text>
         <TextInput
           style={[
             styles.input,
-            errors.middleName ? styles.inputError : (isSubmitted && form.middleName && !errors.middleName ? styles.inputSuccess : null),
+            errors.middleName ? styles.inputError : (touched.middleName && form.middleName && !errors.middleName ? styles.inputSuccess : null),
           ]}
-          placeholder="Middle Name (put N/A if not applicable)"
+          placeholder="Middle Name (optional)"
           value={form.middleName}
           onChangeText={(val) => handleInputChange('middleName', val)}
           onFocus={() => handleFocus('middleName')}
         />
         {errors.middleName && <Text style={styles.validationText}>{errors.middleName}</Text>}
 
+        {/* Email */}
         <Text style={styles.label}>Email.</Text>
         <TextInput
           style={[
             styles.input,
-            errors.email ? styles.inputError : (isSubmitted && form.email && !errors.email ? styles.inputSuccess : null),
+            errors.email ? styles.inputError : (touched.email && form.email && !errors.email ? styles.inputSuccess : null),
           ]}
           placeholder="Email"
           keyboardType="email-address"
+          autoCapitalize="none"
           value={form.email}
           onChangeText={(val) => handleInputChange('email', val)}
           onFocus={() => handleFocus('email')}
         />
         {errors.email && <Text style={styles.validationText}>{errors.email}</Text>}
 
+        {/* Phone */}
         <Text style={styles.label}>Phone number.</Text>
         <TextInput
           style={[
             styles.input,
-            errors.phone ? styles.inputError : (isSubmitted && form.phone && !errors.phone ? styles.inputSuccess : null),
+            errors.phone ? styles.inputError : (touched.phone && form.phone && !errors.phone ? styles.inputSuccess : null),
           ]}
           placeholder="Phone Number"
           keyboardType="phone-pad"
@@ -185,16 +290,13 @@ const RegisterScreen = ({ navigation }) => {
         />
         {errors.phone && <Text style={styles.validationText}>{errors.phone}</Text>}
 
+        {/* Password */}
         <Text style={styles.label}>Password</Text>
         <View style={styles.passwordContainer}>
           <TextInput
             style={[
               styles.input,
-              errors.password
-                ? styles.inputError
-                : isSubmitted && form.password && !errors.password
-                ? styles.inputSuccess
-                : null,
+              errors.password ? styles.inputError : (touched.password && form.password && !errors.password ? styles.inputSuccess : null),
             ]}
             placeholder="Password"
             secureTextEntry={!passwordVisible}
@@ -213,9 +315,6 @@ const RegisterScreen = ({ navigation }) => {
             />
           </TouchableOpacity>
         </View>
-        {errors.password && (
-          <Text style={styles.validationText}>{errors.password}</Text>
-        )}
         <PasswordStrengthMeterBar
           password={form.password}
           showStrengthText={true}
@@ -225,12 +324,13 @@ const RegisterScreen = ({ navigation }) => {
         />
         {errors.password && <Text style={styles.validationText}>{errors.password}</Text>}
 
+        {/* Confirm Password */}
         <Text style={styles.label}>Confirm Password</Text>
         <View style={styles.passwordContainer}>
           <TextInput
             style={[
               styles.input,
-              errors.confirmPassword ? styles.inputError : (isSubmitted && form.confirmPassword && !errors.confirmPassword ? styles.inputSuccess : null),
+              errors.confirmPassword ? styles.inputError : (touched.confirmPassword && form.confirmPassword && !errors.confirmPassword ? styles.inputSuccess : null),
             ]}
             placeholder="Confirm Password"
             secureTextEntry={!confirmPasswordVisible}
@@ -252,13 +352,17 @@ const RegisterScreen = ({ navigation }) => {
         {errors.confirmPassword && <Text style={styles.validationText}>{errors.confirmPassword}</Text>}
       </ScrollView>
 
+      {/* Continue Button */}
       <TouchableOpacity
-        style={[styles.continueButton, !isValid && styles.buttonDisabled]}
-        onPress={navigation.navigate('VerifyEmail')}
-        // onPress={handleContinue}
-        // disabled={!isValid}
+        style={[styles.continueButton, (!isFormValid() || isLoading) && styles.buttonDisabled]}
+        onPress={handleContinue}
+        disabled={!isFormValid() || isLoading}
       >
-        <Text style={styles.continueText}>Continue</Text>
+        {isLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.continueText}>Continue</Text>
+        )}
       </TouchableOpacity>
 
       <Image

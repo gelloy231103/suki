@@ -5,6 +5,9 @@ import { createStackNavigator, TransitionPresets } from '@react-navigation/stack
 import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 import * as Font from 'expo-font';
 import AppLoading from 'expo-app-loading';
+import 'react-native-gesture-handler';
+
+
 
 // Screen imports
 import LoaderScreen from './screens/LoaderScreen';
@@ -20,9 +23,11 @@ import VerifyEmail from './screens/VerifyEmail';
 import WelcomeToFam from './screens/WelcomeToFam';
 import Verified from './screens/Verified';
 import Onboarding from './screens/OnBoarding';
-import Welcome from './screens/OnBoarding';
 import ProfileDashboard from './screens/ProfileDashboard';
 import EditUserProfile from './screens/EditUserProfile';
+import WalletScreen from './screens/Wallet';
+import { AuthProvider } from './context/AuthContext';
+import AddCardScreen from './screens/AddCardScreen';
 
 const Stack = createStackNavigator();
 
@@ -61,88 +66,100 @@ const App = () => {
   }
 
   return (
-    <PaperProvider theme={theme}>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="LandingScreen"
-          screenOptions={{
-            gestureEnabled: true,
-            ...TransitionPresets.SlideFromRightIOS,
-          }}
-        >
-          <Stack.Screen
-            name="Slides"
-            component={SlideScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="ListProducts"
-            component={ListProductsScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="FocusedProduct"
-            component={FocusedProductScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="CheckOut"
-            component={CheckOutScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Login"
-            component={Login}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="LandingScreen"
-            component={LandingScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Register"
-            component={RegisterScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="UploadId"
-            component={UploadId}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="VerifyEmail"
-            component={VerifyEmail}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="WelcomeToFam"
-            component={WelcomeToFam}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Verified"
-            component={Verified}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="OnBoarding"
-            component={Onboarding}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="ProfileDashboard"
-            component={ProfileDashboard}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="EditUserProfile"
-            component={EditUserProfile}
-            options={{ headerShown: false }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </PaperProvider>
+    <AuthProvider>
+      <PaperProvider theme={theme}>
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName="LandingScreen"
+            screenOptions={{
+              gestureEnabled: true,
+              ...TransitionPresets.SlideFromRightIOS,
+            }}
+          >
+            <Stack.Screen
+              name="Slides"
+              component={SlideScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ListProducts"
+              component={ListProductsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="FocusedProduct"
+              component={FocusedProductScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CheckOut"
+              component={CheckOutScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Login"
+              component={Login}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LandingScreen"
+              component={LandingScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Register"
+              component={RegisterScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="UploadId"
+              component={UploadId}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="VerifyEmail"
+              component={VerifyEmail}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="WelcomeToFam"
+              component={WelcomeToFam}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Verified"
+              component={Verified}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="OnBoarding"
+              component={Onboarding}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ProfileDashboard"
+              component={ProfileDashboard}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="EditUserProfile"
+              component={EditUserProfile}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="WalletScreen"
+              component={WalletScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="AddCardScreen"
+              component={AddCardScreen}
+              options={{ headerShown: false }}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </PaperProvider>
+    </AuthProvider>
   );
 };
 
