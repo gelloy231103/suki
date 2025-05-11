@@ -9,7 +9,7 @@ import {
   Dimensions,
   Easing,
 } from 'react-native';
-
+import { useNavigation } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -110,7 +110,7 @@ export default function WelcomeToFamilyScreen({ navigation }) {
         />
         <Text style={styles.title}>Welcome to the Family!</Text>
         <Text style={styles.subtitle}>
-        We're thrilled to have you join our community. Suki is your direct link to fresh, locally produced agricultural products, cutting out the middlemen for better prices and a more sustainable approach to farming. 
+          An email has been sent to <Text style={styles.highlight}>qabcd@tip.edu.ph</Text> with a link to verify your account. If you have not received the email after a few minutes, please check your spam folder.
         </Text>
         <TouchableOpacity style={styles.button} onPress={handleSetup}>
           <Text style={styles.buttonText}>Set Up My Profile</Text>
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   image: {
-    width: width * 0.75,
+    width: width * 0.8,
     height: height * 0.5,
     marginBottom: 30,
   },
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Bold',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#444444',
     textAlign: 'center',
     paddingHorizontal: 10,
