@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import Entypo from '@expo/vector-icons/Entypo';
 
 const orders = [
   { id: '123456', quantity: '10 kg', date: '05/12/2025 20:39' },
@@ -17,15 +18,16 @@ const OrderItem = ({ order }) => (
       <Text style={styles.productName}>Sweet Tomatoes</Text>
       <Text style={styles.orderText}>Order ID: {order.id}</Text>
       <Text style={styles.orderText}>Quantity: {order.quantity}</Text>
-      <Text style={styles.orderText}>Order Made: {order.date}</Text>
+     <Text style={[styles.orderText, { marginTop: 15 }]}>Order Made: {order.date}</Text>
     </View>
     <TouchableOpacity style={styles.editIcon}>
-      <Text style={styles.editText}>✏️</Text>
+      <Entypo name="edit" size={13} color="#9DCD5A" />
     </TouchableOpacity>
+
   </View>
 );
 
-const ListOfProduct = () => (
+const ListofProduct = () => (
   <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       <Text style={styles.header}>LIST OF ORDERS</Text>
@@ -53,6 +55,7 @@ const styles = StyleSheet.create({
     fontSize: 12    ,
     fontFamily: 'Poppins-Bold',
     color: '#fff',
+    alignContent: 'center',
   },
   orderItem: {
     flexDirection: 'row',
@@ -78,7 +81,7 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 12,
-    fontFamily: 'Poppins-Bold',1
+    fontFamily: 'Poppins-Bold',
   },
   orderText: {
     fontSize: 10,
@@ -94,4 +97,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ListOfProduct;
+export default ListofProduct;
