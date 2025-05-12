@@ -38,6 +38,7 @@ import EditFarmProfile from './screens/EditFarmProfile.js'
 import ProductDetails from './screens/productDetails.js';
 import ProductList from './screens/ProductList.js';
 import AddProductScreen from './screens/AddProductScreen.js';
+import CartScreen from './screens/CartScreen.js';
 import ProductsScreen from './screens/ProductsScreen.js';
 
 const Stack = createStackNavigator();
@@ -170,6 +171,11 @@ const App = () => {
           <Stack.Screen
             name="MainTab"
             component={MainTab}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="CartScreen"
+            component={CartScreen}
             options={{ headerShown: false }}
           />
             <Stack.Screen

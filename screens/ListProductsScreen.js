@@ -254,23 +254,24 @@ const styles = StyleSheet.create({
   },
   categoriesContainer: {
     paddingHorizontal: 15,
+    height: 50,
   },
   categoryButton: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
     borderRadius: 16,
     backgroundColor: '#EEE',
     marginRight: 12,
-    justifyContent: 'center', 
-    alignItems: 'center',   
+    textAlign: 'center',
+    height: 30,
   },
   activeCategoryButton: {
     backgroundColor: '#9DCD5A',
+    color: 'white',
   },
   categoryText: {
+    marginTop: 5,
     fontSize: 12,
-    color: '#666',
-    backgroundColor: 'red'
+    color: 'black',
   },
   activeCategoryText: {
     color: '#FFF',
