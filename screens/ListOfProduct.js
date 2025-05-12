@@ -27,7 +27,7 @@ const OrderItem = ({ order }) => (
   </View>
 );
 
-const ListofProduct = () => (
+const ListOfProducts = () => (
   <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       <Text style={styles.header}>LIST OF ORDERS</Text>
@@ -97,4 +97,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ListofProduct;
+export default ListOfProducts;

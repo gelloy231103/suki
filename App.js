@@ -7,14 +7,11 @@ import * as Font from 'expo-font';
 import AppLoading from 'expo-app-loading';
 import 'react-native-gesture-handler';
 
-
 import 'react-native-gesture-handler';
-
-
 
 // Screen imports
 import LoaderScreen from './screens/LoaderScreen';
-import ListProductsScreen from './screens/ListProductsScreen';
+import ListProductsScreen from './screens/ListProductsScreen'
 import FocusedProductScreen from './screens/FocusedProductScreen';
 import CheckOutScreen from './screens/CheckOutScreen';
 import Login from './screens/Login';
@@ -40,7 +37,7 @@ import ProductList from './screens/ProductList.js';
 import AddProductScreen from './screens/AddProductScreen.js';
 import CartScreen from './screens/CartScreen.js';
 import ProductsScreen from './screens/ProductsScreen.js';
-import ListofProduct from './screens/ListofProduct.js';
+import ListOfProducts from './screens/ListOfProduct.js';
 
 const Stack = createStackNavigator();
 
@@ -215,8 +212,8 @@ const App = () => {
             options={{ headerShown: false }}
             />
             <Stack.Screen
-            name="ListofProduct"
-            component={ListofProduct}
+            name="ListOfProducts"
+            component={ListOfProducts}
             options={{ headerShown: false }}
             />
           </Stack.Navigator>
