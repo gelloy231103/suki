@@ -53,7 +53,10 @@ const Login = ({navigation}) => {
         );
         {console.log(userData)}
         
-        navigation.navigate('OnBoarding');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTab' }],
+        });
       } else {
         throw new Error("User profile not found in database");
       }

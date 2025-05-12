@@ -1,11 +1,29 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, FlatList, Animated, Easing } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-
 const DashboardScreen = ({ navigation }) => {
-  const categories = ['leafy greens', 'root crops', 'FILLERS & BEAUTY PRODUCTS'];
-  const [activeTab, setActiveTab] = useState('Home');
+  const categories = ['Leafy Greens', 'Root Crops', 'Fruits', 'Herbs', 'Fillers & Beauty'];
+  const [searchFocused, setSearchFocused] = useState(false);
+  const scaleValue = new Animated.Value(1);
+
+  const animateButton = () => {
+    Animated.sequence([
+      Animated.timing(scaleValue, {
+        toValue: 0.95,
+        duration: 100,
+        easing: Easing.ease,
+        useNativeDriver: true
+      }),
+      Animated.spring(scaleValue, {
+        toValue: 1,
+        friction: 3,
+        useNativeDriver: true
+      })
+    ]).start();
+  };
+
   const renderRatingStars = (rating) => {
     return (
       <View style={styles.starsContainer}>
@@ -13,12 +31,10 @@ const DashboardScreen = ({ navigation }) => {
           <Icon 
             key={i}
             name={i <= rating ? 'star' : 'star-border'}
-            size={16}
-            color={i <= rating ? '#9DCD5A' : '#E0E0E0'}
-
+            size={14}
+            color={i <= rating ? '#FFD700' : '#E0E0E0'}
           />
         ))}
-        <Text style={styles.reviewText}>({rating})</Text>
       </View>
     );
   };
@@ -30,82 +46,55 @@ const DashboardScreen = ({ navigation }) => {
       farm: 'Tadhana FarmVille',
       rating: 4.5,
       reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: '₱ 500 Per Sack',
-      image: require('../assets/sale1.png')
+      name: 'Premium Vegetable Sack',
+      inclusions: ['Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱500',
+      originalPrice: '₱1250',
+      discount: '60% OFF',
+      image: require('../assets/sale1.png'),
+      liked: false,
+      tag: 'BEST VALUE'
     },
     {
       id: '2',
-      farm: 'Tadhana FarmVille',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: '₱ 500 Per Sack',
-      image: require('../assets/sale1.png')
+      farm: 'Organic Valley',
+      rating: 4.8,
+      reviews: 72,
+      name: 'Farm Fresh Bundle',
+      inclusions: ['Leafy Greens', 'Herbs', 'Peppers'],
+      price: '₱650',
+      originalPrice: '₱1300',
+      discount: '50% OFF',
+      image: require('../assets/sale1.png'),
+      liked: false,
+      tag: 'POPULAR'
     },
     {
       id: '3',
-      farm: 'Marikina Farm and Restaurant',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: '₱ 500 Per Sack',
-      image: require('../assets/sale1.png')
-    },
-    {
-      id: '4',
-      farm: 'Habano Farm and Grill',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: '₱ 500 Per Sack',
-      image: require('../assets/sale1.png')
-    },
-    {
-      id: '5',
-      farm: 'Habano Farm and Grill',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: '₱ 500 Per Sack',
-      image: require('../assets/sale1.png')
-    },
-    {
-      id: '6',
-      farm: 'Habano Farm and Grill',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: '₱ 500 Per Sack',
-      image: require('../assets/sale1.png')
-    },
-        {
-      id: '7',
-      farm: 'Habano Farm and Grill',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: '₱ 500 Per Sack',
-      image: require('../assets/sale1.png')
+      farm: 'Marikina Farm',
+      rating: 4.3,
+      reviews: 48,
+      name: 'Seasonal Special',
+      inclusions: ['Eggplant', 'Squash', 'Okra'],
+      price: '₱450',
+      originalPrice: '₱900',
+      discount: '50% OFF',
+      image: require('../assets/sale1.png'),
+      liked: false,
+      tag: 'LIMITED'
     },
   ];
-  const [flashDealsList, setFlashDealsList] = useState(flashDeals);
 
+  const [flashDealsList, setFlashDealsList] = useState(flashDeals);
 
   // Regular Products Data
   const products = [
     {
       id: '1',
-      name: 'Sweet Tomatoes',
+      name: 'Sweet Cherry Tomatoes',
       price: '₱40/kg',
-      rating: 4,
+      originalPrice: '₱60/kg',
+      rating: 4.2,
       reviews: 354,
       farm: 'Tadhana FarmVille',
       image: require('../assets/garlic.png'),
@@ -113,485 +102,734 @@ const DashboardScreen = ({ navigation }) => {
     },
     {
       id: '2',
-      name: 'Biggest Eggplant',
+      name: 'Organic Eggplant',
       price: '₱80/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Marikina Farm and Restaurant',
+      rating: 4.5,
+      reviews: 210,
+      farm: 'Marikina Farm',
       image: require('../assets/garlic.png'),
       liked: false,
     },
     {
       id: '3',
-      name: 'Broccolicious',
-      price: '₱40/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Habano Farm and Grill',
-      image: require('../assets/garlic.png')
+      name: 'Fresh Broccoli',
+      price: '₱120/kg',
+      rating: 4.7,
+      reviews: 189,
+      farm: 'Green Valley',
+      image: require('../assets/garlic.png'),
+      liked: false
     },
-       {
+    {
       id: '4',
-      name: 'Broccolicious',
-      price: '₱40/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Habano Farm and Grill',
-      image: require('../assets/garlic.png')
-    },
-       {
-      id: '5',
-      name: 'Broccolicious',
-      price: '₱40/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Habano Farm and Grill',
-      image: require('../assets/garlic.png')
-    },
-       {
-      id: '6',
-      name: 'Broccolicious',
-      price: '₱40/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Habano Farm and Grill',
-      image: require('../assets/garlic.png')
-    },
-       {
-      id: '7',
-      name: 'Broccolicious',
-      price: '₱40/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Habano Farm and Grill',
-      image: require('../assets/garlic.png')
-    },
-       {
-      id: '8',
-      name: 'Broccolicious',
-      price: '₱40/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Habano Farm and Grill',
-      image: require('../assets/garlic.png')
+      name: 'Organic Carrots',
+      price: '₱60/kg',
+      rating: 4.3,
+      reviews: 142,
+      farm: 'Roots Farm',
+      image: require('../assets/garlic.png'),
+      liked: false
     },
   ];
   const [productList, setProductList] = useState(products);
 
-
-    const toggleLike = (id) => {
-    setProductList(prevProducts => 
-      prevProducts.map(product => 
-        product.id === id ? {...product, liked: !product.liked} : product
-      )
-    );
+  const toggleLike = (id, type) => {
+    animateButton();
+    if (type === 'flash') {
+      setFlashDealsList(prevDeals => 
+        prevDeals.map(deal => 
+          deal.id === id ? {...deal, liked: !deal.liked} : deal
+        )
+      );
+    } else {
+      setProductList(prevProducts => 
+        prevProducts.map(product => 
+          product.id === id ? {...product, liked: !product.liked} : product
+        )
+      );
+    }
   };
 
- const renderFlashDeal = ({ item }) => (
-  <View style={styles.flashDealCard}>
-    <View>
-      <Image source={item.image} style={styles.flashDealImage} resizeMode="cover" />
-
-      <View style={styles.discountBadge}>
-        <Text style={styles.discountText}>60% OFF</Text>
-      </View>
-
-      <TouchableOpacity onPress={() => toggleLike(item.id, 'flash')} style={styles.heartIcon}>
-  <Icon 
-    name={item.liked ? 'favorite' : 'favorite-border'} 
-    size={24} 
-    color={item.liked ? '#FF5252' : '#CCCCCC'} 
-  />
-</TouchableOpacity>
-
-    </View>
-
-    <View style={styles.flashDealContent}>
-      <View style={styles.farmRow}>
-        <Icon name="home" size={15} color="#9DCD5A" />
-        <Text style={styles.farmText}>Tadhana FarmVille</Text>
-        {renderRatingStars (4.5, 55)}
-      </View>
-
-      <Text style={styles.flashDealTitle}>Vegetable Sack of Marikina City</Text>
-
-      <Text style={styles.inclusionText}>Inclusions:</Text>
-      <Text style={styles.inclusionText}>• Majority of Root Crops</Text>
-      <Text style={styles.inclusionText}>• Tomatoes</Text>
-      <Text style={styles.inclusionText}>• Corn</Text>
-
-      <Text style={styles.flashDealBottomText}>
-        <Text style={styles.nowOnly}>NOW FOR ONLY </Text>
-        <Text style={styles.flashDealPrice}>₱ 500 Per Sack</Text>
-      </Text>
-    </View>
-  </View>
-);
-
- // Updated product render item to match ListProductsScreen
-  const renderProduct = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.productCard}
-      onPress={() => navigation.navigate('FocusedProduct', { product: item })}
-    >
-      <Image source={item.image} style={styles.productImage} resizeMode="cover" />
-      
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productPrice}>{item.price}</Text>
+  const renderFlashDeal = ({ item }) => (
+    <View style={[styles.flashDealCard]}>
+      <View style={styles.flashDealImageContainer}>
+        <Image source={item.image} style={styles.flashDealImage} resizeMode="cover" />
         
-        <View style={styles.ratingContainer}>
-          {renderRatingStars(item.rating)}
-          <Text style={styles.reviewText}>{item.reviews} reviews</Text>
-        </View>
+        {item.tag && (
+          <View style={[
+            styles.tagBadge,
+            item.tag === 'BEST VALUE' && styles.bestValueBadge,
+            item.tag === 'POPULAR' && styles.popularBadge,
+            item.tag === 'LIMITED' && styles.limitedBadge
+          ]}>
+            <Text style={styles.tagText}>{item.tag}</Text>
+          </View>
+        )}
         
-        <View style={styles.farmContainer}>
-          <Icon name="location-on" size={16} color="#9DCD5A" />
-          <Text style={styles.farmText}>{item.farm}</Text>
-        </View>
-      </View>
-      
-      <View style={styles.likeButtonContainer}>
-        <TouchableOpacity onPress={() => toggleLike(item.id, 'product')}>
+        <TouchableOpacity 
+          onPress={() => toggleLike(item.id, 'flash')} 
+          style={styles.heartIcon}
+        >
           <Icon 
             name={item.liked ? 'favorite' : 'favorite-border'} 
             size={24} 
-            color={item.liked ? '#FF5252' : '#CCCCCC'} 
+            color={item.liked ? '#FF5252' : 'white'} 
           />
         </TouchableOpacity>
+        
+        <View style={styles.discountBadge}>
+          <Text style={styles.discountText}>{item.discount}</Text>
+        </View>
       </View>
-    </TouchableOpacity>
+      
+      <View style={styles.flashDealContent}>
+        <View style={styles.farmRow}>
+          <Icon name="home" size={15} color="#9DCD5A" />
+          <Text style={styles.farmText}>{item.farm}</Text>
+          {renderRatingStars(item.rating)}
+          <Text style={styles.reviewText}>({item.reviews})</Text>
+        </View>
+        
+        <Text style={styles.flashDealTitle}>{item.name}</Text>
+        
+        <View style={styles.inclusionsContainer}>
+          <Text style={styles.inclusionTitle}>Includes:</Text>
+          {item.inclusions.map((inc, index) => (
+            <Text key={index} style={styles.inclusionText}>• {inc}</Text>
+          ))}
+        </View>
+        
+        <View style={styles.priceContainer}>
+          <Text style={styles.nowOnly}>NOW </Text>
+          <Text style={styles.flashDealPrice}>{item.price}</Text>
+          {item.originalPrice && (
+            <Text style={styles.originalPrice}>{item.originalPrice}</Text>
+          )}
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.addToCartButton}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.addToCartText}>ADD TO CART</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
-  
+  const renderProduct = ({ item }) => (
+    <Animated.View 
+      style={[styles.productCard, { transform: [{ scale: scaleValue }] }]}
+    >
+      <TouchableOpacity
+        onPress={() => navigation.navigate('FocusedProduct', { product: item })}
+        activeOpacity={0.9}
+      >
+        <View style={styles.productImageContainer}>
+          <Image source={item.image} style={styles.productImage} resizeMode="cover" />
+          
+          <TouchableOpacity 
+            onPress={() => toggleLike(item.id, 'product')}
+            style={styles.productHeartIcon}
+          >
+            <Icon 
+              name={item.liked ? 'favorite' : 'favorite-border'} 
+              size={20} 
+              color={item.liked ? '#FF5252' : 'white'} 
+            />
+          </TouchableOpacity>
+          
+          {item.originalPrice && (
+            <View style={styles.productDiscountBadge}>
+              <Text style={styles.productDiscountText}>SAVE ₱20</Text>
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.productContent}>
+          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+          
+          <View style={styles.productPriceContainer}>
+            <Text style={styles.productPrice}>{item.price}</Text>
+            {item.originalPrice && (
+              <Text style={styles.productOriginalPrice}>{item.originalPrice}</Text>
+            )}
+          </View>
+          
+          <View style={styles.productRatingContainer}>
+            {renderRatingStars(item.rating)}
+            <Text style={styles.productReviewText}>{item.reviews} reviews</Text>
+          </View>
+          
+          <View style={styles.productFarmContainer}>
+            <Icon name="location-on" size={14} color="#9DCD5A" />
+            <Text style={styles.productFarmText} numberOfLines={1}>{item.farm}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+      
+    </Animated.View>
+  );
+
   return (
-    <View style={styles.container}>
-      {/* Main Scrollable Content */}
+    <SafeAreaView style={styles.safeArea}>
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greetingText}>Good morning,</Text>
+            <Text style={styles.userName}>Suki Member!</Text>
+          </View>
+          
+          <TouchableOpacity style={styles.notificationButton}>
+            <Icon name="notifications" size={24} color="#333" />
+            <View style={styles.notificationBadge} />
+          </TouchableOpacity>
+        </View>
+        
         {/* Search Bar */}
-        <View style={styles.searchContainer}>
+        <View style={[styles.searchContainer, searchFocused && styles.searchContainerFocused]}>
           <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
           <TextInput
-            placeholder="Search"
+            placeholder="Search for fresh produce..."
             style={styles.searchInput}
             placeholderTextColor="#888"
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+          />
+          <TouchableOpacity style={styles.filterButton}>
+            <Icon name="tune" size={20} color="#9DCD5A" />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Categories */}
+        
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, {marginLeft: 20, marginBottom: 10}]}>Shop Categories</Text>
+          <ScrollView 
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContainer}
+          >
+            {categories.map((category, index) => (
+              <TouchableOpacity 
+                key={index} 
+                style={styles.categoryButton}
+                onPress={() => navigation.navigate('CategoryProducts', { category })}
+              >
+                <Text style={styles.categoryText}>{category}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+        
+        {/* Banner */}
+        <View style={styles.bannerContainer}>
+          <Image
+            source={require('../assets/filler-img.png')}
+            style={styles.bannerImage}
+            resizeMode="cover"
+          />
+          <View style={styles.bannerContent}>
+            <Text style={styles.bannerTitle}>Seasonal Specials</Text>
+            <Text style={styles.bannerSubtitle}>Up to 70% OFF on selected items</Text>
+            <TouchableOpacity style={styles.bannerButton}>
+              <Text style={styles.bannerButtonText}>SHOP NOW</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        {/* Flash Deals */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <Icon name="flash-on" size={20} color="#FFA726" />
+              <Text style={styles.sectionTitle}>Flash Deals</Text>
+            </View>
+            <TouchableOpacity style={styles.viewAllButton}>
+              <Text style={styles.viewAllText}>View All</Text>
+              <Icon name="chevron-right" size={16} color="#9DCD5A" />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            horizontal
+            data={flashDealsList}
+            renderItem={renderFlashDeal}
+            keyExtractor={item => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.flashDealsContainer}
           />
         </View>
-
-        {/* Logo */}
-        <Image 
-          source={require('../assets/suki-big-logo.png')} 
-          style={styles.logo} 
-          resizeMode="contain"
-        />
-
-        {/* Category Buttons */}
-        <ScrollView 
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesContainer}
-        >
-          {categories.map((category, index) => (
-            <TouchableOpacity 
-              key={index} 
-              style={styles.categoryButton}
-              onPress={() => navigation.navigate('CategoryProducts', { category })}
-            >
-              <Text style={styles.categoryText}>{category}</Text>
+        
+        {/* Products */}
+        <View style={[styles.section, {marginBottom: 0}]}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <Icon name="local-offer" size={20} color="#9DCD5A" />
+              <Text style={styles.sectionTitle}>Fresh Picks</Text>
+            </View>
+            <TouchableOpacity style={styles.viewAllButton}>
+              <Text style={styles.viewAllText}>View All</Text>
+              <Icon name="chevron-right" size={16} color="#9DCD5A" />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Banner Image */}
-        <Image
-          source={require('../assets/filler-img.png')}
-          style={styles.bannerImage}
-          resizeMode="contain"
-        />
-
-        {/* Flash Deals Section (unchanged) */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Flash Deals</Text>
-          <Text style={styles.viewAllText}>View All</Text>
+          </View>
+          <FlatList
+            data={productList}
+            renderItem={renderProduct}
+            keyExtractor={item => item.id}
+            scrollEnabled={false}
+            contentContainerStyle={styles.productsContainer}
+            numColumns={2}
+            columnWrapperStyle={styles.productsRow}
+          />
         </View>
-        <FlatList
-          horizontal
-          data={flashDealsList}
-          renderItem={renderFlashDeal}
-          keyExtractor={item => item.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.flashDealsContainer}
-        />
-
-        {/* Products Section - Now using wide cards */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Products</Text>
-        </View>
-        <FlatList
-          data={productList}
-          renderItem={renderProduct}
-          keyExtractor={item => item.id}
-          scrollEnabled={false}
-        />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9F9F9',
   },
   scrollView: {
     flex: 1,
-    marginBottom: 40, // Matches bottom menu height
   },
   contentContainer: {
+    paddingBottom: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  greetingContainer: {
+    flexDirection: 'column',
+  },
+  greetingText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+  },
+  userName: {
+    fontSize: 20,
+    color: '#333',
+    fontFamily: 'Poppins-SemiBold',
+    marginTop: 2,
+  },
+  notificationButton: {
+    position: 'relative',
     padding: 8,
-    paddingTop: 40,
-    paddingBottom: 0,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF5252',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    height: 40,
+    backgroundColor: '#FFF',
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    height: 56,
+    marginHorizontal: 24,
     marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: '#EEE',
+  },
+  searchContainerFocused: {
+    borderColor: '#9DCD5A',
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
     height: '100%',
-    fontSize: 14,
+    fontSize: 16,
     color: '#333',
+    fontFamily: 'Poppins-Regular',
   },
-  logo: {
-    width: '100%',
-    height: 120,
-    marginBottom: 20,
+  filterButton: {
+    marginLeft: 12,
+    padding: 4,
   },
-  categoriesContainer: {
-    paddingBottom: 20,
-   
-  },
-  categoryButton: {
-    backgroundColor: '#9DCD5A',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginRight: 10,
-    height: 40,
-    justifyContent: 'center',
-    marginTop: 2, 
-
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFF',
-    textTransform: 'uppercase',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  bannerImage: {
-    width: '100%',
-    height: 180,
-    marginTop: -20,
-    marginBottom: 20,
+  section: {
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 18,
-    color: '#403F3F',
+    fontSize: 20,
+    color: '#333',
     fontFamily: 'Poppins-Bold',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   viewAllText: {
     fontSize: 14,
     color: '#9DCD5A',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  categoriesContainer: {
+    paddingLeft: 24,
+    paddingRight: 12,
+    paddingBottom: 8,
+  },
+  categoryButton: {
+    marginRight: 12,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+    paddingVertical: 5,
+    paddingHorizontal: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#EEE',
+  },
+  categoryText: {
+    fontSize: 14,
     fontWeight: '600',
+    color: '#9DCD5A',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  bannerContainer: {
+    height: 160,
+    borderRadius: 12,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#F0F7E6',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.3,
+  },
+  bannerContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 20,
+    justifyContent: 'center',
+  },
+  bannerTitle: {
+    fontSize: 22,
+    color: '#2E7D32',
+    fontFamily: 'Poppins-Bold',
+    marginBottom: 4,
+  },
+  bannerSubtitle: {
+    fontSize: 16,
+    color: '#2E7D32',
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 16,
+  },
+  bannerButton: {
+    backgroundColor: '#9DCD5A',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    alignSelf: 'flex-start',
+  },
+  bannerButtonText: {
+    fontSize: 14,
+    color: '#FFF',
+    fontFamily: 'Poppins-SemiBold',
   },
   flashDealsContainer: {
-    paddingBottom: 5,
+    paddingLeft: 24,
+    paddingRight: 12,
   },
   flashDealCard: {
-    width: 230,
+    width: 280,
     backgroundColor: '#FFF',
     borderRadius: 12,
-    marginRight: 15,
-    elevation: 3,
+    marginRight: 16,
+    marginBottom: 10,
+    elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  flashDealImageContainer: {
+    position: 'relative',
+    height: 160,
   },
   flashDealImage: {
     width: '100%',
-    height: 120,
+    height: '100%',
   },
-  
+  tagBadge: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 2,
+    backgroundColor: '#FFF',
+  },
+  bestValueBadge: {
+    backgroundColor: '#4CAF50',
+  },
+  popularBadge: {
+    backgroundColor: '#FFA726',
+  },
+  limitedBadge: {
+    backgroundColor: '#F44336',
+  },
+  tagText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontFamily: 'Poppins-SemiBold',
+  },
   discountBadge: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: 'rgba(232, 235, 209, 0.75)',
-    paddingHorizontal: 8,
+    bottom: 16,
+    left: 16,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: 12,
+    zIndex: 2,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
   },
   discountText: {
-    color: '#009216',
+    color: '#4CAF50',
     fontSize: 12,
     fontFamily: 'Poppins-SemiBold',
   },
   heartIcon: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 16,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 20,
+    padding: 6,
+    zIndex: 2,
   },
   flashDealContent: {
-    padding: 15,
+    padding: 16,
   },
   farmRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  farmText: {
-    fontSize: 10,
-    color: '#BBB5B5',
-    fontFamily: 'Poppins',
-  },
-  reviewText: {
-    fontSize: 8,
-    color: '#BBB5B5',
-    marginLeft: 4,
-    alignSelf: 'center',
-  },
-  flashDealTitle: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Bold',
-    color: '#000000',
-    marginBottom: 11,
-  },
-  inclusionText: {
-    fontSize: 10,
-    color: '#BBB5B5',
-    fontFamily: 'Poppins',
-    marginBottom: 17,
-  },
-  nowOnly: {
-    color: '#009216',
-    fontSize: 10,
-    fontFamily: 'Poppins-Bold',
-  },
-  flashDealPrice: {
-    color: '#000000',
-    fontSize: 10,
-    fontFamily: 'Poppins-Bold',
-    marginLeft: 10,
-  },
-  flashDealsContainer: {
-    paddingBottom: 20,
-  },
-  farmContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 8,
   },
   farmText: {
     fontSize: 12,
     color: '#666',
-    marginLeft: 4,
+    fontFamily: 'Poppins-Regular',
+    marginLeft: 6,
+    marginRight: 8,
   },
   starsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginRight: 4,
+  },
+  reviewText: {
+    fontSize: 12,
+    color: '#BBB5B5',
+    fontFamily: 'Poppins-Regular',
+  },
+  flashDealTitle: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
+    marginBottom: 12,
   },
   inclusionsContainer: {
-    marginVertical: 8,
+    marginBottom: 16,
+  },
+  inclusionTitle: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 6,
   },
   inclusionText: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 4,
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 2,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  nowOnly: {
+    color: '#666',
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  flashDealPrice: {
+    color: '#333',
+    fontSize: 20,
+    fontFamily: 'Poppins-Bold',
+    marginLeft: 4,
+  },
+  originalPrice: {
+    color: '#999',
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    textDecorationLine: 'line-through',
+    marginLeft: 8,
+  },
+  addToCartButton: {
+    backgroundColor: '#9DCD5A',
+    borderRadius: 20,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  addToCartText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  productsContainer: {
+    paddingHorizontal: 20,
   },
   productsRow: {
     justifyContent: 'space-between',
-    marginBottom: 15,
-
+    marginBottom: 16,
   },
   productCard: {
-    flexDirection: 'row',
+    width: '48%',
     backgroundColor: '#FFF',
     borderRadius: 12,
-    marginBottom: 16,
-    padding: 10,
-    elevation: 8,
+    elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    alignItems: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  productImageContainer: {
+    height: 140,
+    position: 'relative',
+    backgroundColor: '#F5F5F5',
   },
   productImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    marginRight: 12,
-    marginTop: 8,
+    width: '100%',
+    height: '100%',
   },
-  productInfo: {
-    flex: 1,
+  productHeartIcon: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 16,
+    padding: 4,
+    zIndex: 2,
+  },
+  productDiscountBadge: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    backgroundColor: '#FF5252',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    zIndex: 2,
+  },
+  productDiscountText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  productContent: {
+    padding: 12,
   },
   productName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#403F3F',
-    marginBottom: 4,
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
+    marginBottom: 6,
+  },
+  productPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   productPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#009216',
-    marginBottom: 8,
+    fontFamily: 'Poppins-Bold',
+    color: '#9DCD5A',
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    marginRight: 8,
-  },
-  farmContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  farmText: {
+  productOriginalPrice: {
     fontSize: 12,
-    color: '#666',
+    fontFamily: 'Poppins-Regular',
+    color: '#999',
+    textDecorationLine: 'line-through',
+    marginLeft: 6,
+  },
+  productRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  productReviewText: {
+    fontSize: 10,
+    color: '#BBB5B5',
+    fontFamily: 'Poppins-Regular',
     marginLeft: 4,
   },
-  likeButtonContainer: {
-    justifyContent: 'center',
+  productFarmContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+  },
+  productFarmText: {
+    fontSize: 11,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+    marginLeft: 4,
+    flex: 1,
   },
 });
 
