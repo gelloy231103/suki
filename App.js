@@ -79,7 +79,7 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
-            initialRouteName="AddProductScreen"
+            initialRouteName="Login"
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
@@ -88,6 +88,11 @@ const App = () => {
             <Stack.Screen
               name="ListProducts"
               component={ListProductsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Dashboard"
+              component={DashboardScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -23,7 +23,7 @@ const productImages = [
   require('../assets/images/products/2.png'),
 ];
 
-export default function DashboardScreen({ navigation }) {
+export default function FarmDashboardScreen({ navigation }) {
   const { userData } = useContext(AuthContext);
 
   return (

@@ -6,117 +6,6 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 const DashboardScreen = ({ navigation }) => {
   const categories = ['leafy greens', 'root crops', 'FILLERS & BEAUTY PRODUCTS'];
   const [activeTab, setActiveTab] = useState('Home');
-  
- const toggleLike = (id, type) => {
-  if (type === 'flash') {
-    const updatedFlashDeals = flashDealsList.map((item) =>
-      item.id === id ? { ...item, liked: !item.liked } : item
-    );
-    setFlashDealsList(updatedFlashDeals);
-  } else {
-    const updatedProducts = productList.map((item) =>
-      item.id === id ? { ...item, liked: !item.liked } : item
-    );
-    setProductList(updatedProducts);
-  }
-};
-
-
-  // Flash Deals Data
-  const flashDeals = [
-    {
-      id: '1',
-      farm: 'Tadhana FarmVille',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: 'P 500 Per Sack',
-      image: require('../assets/sale1.png'),
-      liked: false,
-    },
-    {
-      id: '2',
-      farm: 'Tadhana FarmVille',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: 'P 500 Per Sack',
-      image: require('../assets/sale1.png'),
-      liked: false,
-    },
-    {
-      id: '3',
-      farm: 'Marikina Farm and Restaurant',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: 'P 500 Per Sack',
-      image: require('../assets/sale1.png'),
-      liked: false,
-    },
-    {
-      id: '4',
-      farm: 'Habano Farm and Grill',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Vegetable Sack of Marikina City',
-      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: 'P 500 Per Sack',
-      image: require('../assets/sale1.png'),
-      liked: false,
-    }
-  ];
-  const [flashDealsList, setFlashDealsList] = useState(flashDeals);
-
-
-  // Regular Products Data
-  const products = [
-    {
-      id: '1',
-      name: 'Sweet Tomatoes',
-      price: 'P40/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Tadhana FarmVille',
-      image: require('../assets/garlic.png'),
-      liked: false,
-    },
-    {
-      id: '2',
-      name: 'Biggest Eggplant',
-      price: 'P80/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Marikina Farm and Restaurant',
-      image: require('../assets/garlic.png'),
-      liked: false,
-    },
-    {
-      id: '3',
-      name: 'Broccolicious',
-      price: 'P40/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Habano Farm and Grill',
-      image: require('../assets/garlic.png'),
-      liked: false,
-    },
-   {
-      id: '4',
-      name: 'Broccolicious',
-      price: 'P40/kg',
-      rating: 4,
-      reviews: 354,
-      farm: 'Habano Farm and Grill',
-      image: require('../assets/garlic.png'),
-      liked: false,
-    }
-  ];
-  const [productList, setProductList] = useState(products);
-
   const renderRatingStars = (rating) => {
     return (
       <View style={styles.starsContainer}>
@@ -129,24 +18,174 @@ const DashboardScreen = ({ navigation }) => {
 
           />
         ))}
+        <Text style={styles.reviewText}>({rating})</Text>
       </View>
     );
   };
 
-  const renderRatingStars1 = (rating, reviewCount) => {
-  return (
-    <View style={styles.starsContainer}>
-      {/* Always display 1 star */}
-      <Icon 
-        name="star" 
-        size={16} 
-        color="#9DCD5A"  // Color for the filled star
-      />
-      {/* Display the rating and the review count */}
-      <Text style={styles.reviewText}> {rating} ({reviewCount} reviews)</Text>
-    </View>
-  );
-};
+  // Flash Deals Data
+  const flashDeals = [
+    {
+      id: '1',
+      farm: 'Tadhana FarmVille',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
+    {
+      id: '2',
+      farm: 'Tadhana FarmVille',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
+    {
+      id: '3',
+      farm: 'Marikina Farm and Restaurant',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
+    {
+      id: '4',
+      farm: 'Habano Farm and Grill',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
+    {
+      id: '5',
+      farm: 'Habano Farm and Grill',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
+    {
+      id: '6',
+      farm: 'Habano Farm and Grill',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
+        {
+      id: '7',
+      farm: 'Habano Farm and Grill',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
+  ];
+  const [flashDealsList, setFlashDealsList] = useState(flashDeals);
+
+
+  // Regular Products Data
+  const products = [
+    {
+      id: '1',
+      name: 'Sweet Tomatoes',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Tadhana FarmVille',
+      image: require('../assets/garlic.png'),
+      liked: false,
+    },
+    {
+      id: '2',
+      name: 'Biggest Eggplant',
+      price: '₱80/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Marikina Farm and Restaurant',
+      image: require('../assets/garlic.png'),
+      liked: false,
+    },
+    {
+      id: '3',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
+       {
+      id: '4',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
+       {
+      id: '5',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
+       {
+      id: '6',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
+       {
+      id: '7',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
+       {
+      id: '8',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
+  ];
+  const [productList, setProductList] = useState(products);
+
+
+    const toggleLike = (id) => {
+    setProductList(prevProducts => 
+      prevProducts.map(product => 
+        product.id === id ? {...product, liked: !product.liked} : product
+      )
+    );
+  };
 
  const renderFlashDeal = ({ item }) => (
   <View style={styles.flashDealCard}>
@@ -171,7 +210,7 @@ const DashboardScreen = ({ navigation }) => {
       <View style={styles.farmRow}>
         <Icon name="home" size={15} color="#9DCD5A" />
         <Text style={styles.farmText}>Tadhana FarmVille</Text>
-        {renderRatingStars1 (4.5, 55)}
+        {renderRatingStars (4.5, 55)}
       </View>
 
       <Text style={styles.flashDealTitle}>Vegetable Sack of Marikina City</Text>
@@ -310,12 +349,12 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    marginBottom: 20, // Matches bottom menu height
+    marginBottom: 40, // Matches bottom menu height
   },
   contentContainer: {
-    padding: 16,
-    paddingTop: 50,
-    paddingBottom: 20,
+    padding: 8,
+    paddingTop: 40,
+    paddingBottom: 0,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -337,7 +376,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: '100%',
-    height: 140,
+    height: 120,
     marginBottom: 20,
   },
   categoriesContainer: {
@@ -381,8 +420,11 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    color: '#009216',
-    fontFamily: 'Poppins-SemiBold',
+    color: '#9DCD5A',
+    fontWeight: '600',
+  },
+  flashDealsContainer: {
+    paddingBottom: 5,
   },
   flashDealCard: {
     width: 230,
@@ -491,24 +533,27 @@ const styles = StyleSheet.create({
   productsRow: {
     justifyContent: 'space-between',
     marginBottom: 15,
+
   },
   productCard: {
     flexDirection: 'row',
     backgroundColor: '#FFF',
     borderRadius: 12,
     marginBottom: 16,
-    padding: 12,
-    elevation: 2,
+    padding: 10,
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    alignItems: 'center',
   },
   productImage: {
     width: 80,
     height: 80,
     borderRadius: 12,
     marginRight: 12,
+    marginTop: 8,
   },
   productInfo: {
     flex: 1,
@@ -522,7 +567,7 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#9DCD5A',
+    color: '#009216',
     marginBottom: 8,
   },
   ratingContainer: {
