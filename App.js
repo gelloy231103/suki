@@ -8,12 +8,14 @@ import AppLoading from 'expo-app-loading';
 import 'react-native-gesture-handler';
 
 
+import 'react-native-gesture-handler';
+
+
 
 // Screen imports
 import LoaderScreen from './screens/LoaderScreen';
-import SlideScreen from './screens/SlideScreen';
 import ListProductsScreen from './screens/ListProductsScreen';
-// import FocusedProductScreen from './screens/FocusedProductScreen';
+import FocusedProductScreen from './screens/FocusedProductScreen';
 import CheckOutScreen from './screens/CheckOutScreen';
 import Login from './screens/Login';
 import LandingScreen from './screens/LandingScreen';
@@ -22,12 +24,14 @@ import UploadId from './screens/UploadId';
 import VerifyEmail from './screens/VerifyEmail';
 import WelcomeToFam from './screens/WelcomeToFam';
 import Verified from './screens/Verified';
-import Onboarding from './screens/OnBoarding';
+import DashboardScreen from './screens/dashboardScreen'; 
 import ProfileDashboard from './screens/ProfileDashboard';
 import EditUserProfile from './screens/EditUserProfile';
 import WalletScreen from './screens/Wallet';
 import { AuthProvider } from './context/AuthContext';
 import AddCardScreen from './screens/AddCardScreen';
+import OnBoarding from './screens/OnBoarding';
+import MainTab from './navigation/MainTab';
 
 const Stack = createStackNavigator();
 
@@ -77,20 +81,15 @@ const App = () => {
             }}
           >
             <Stack.Screen
-              name="Slides"
-              component={SlideScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
               name="ListProducts"
               component={ListProductsScreen}
               options={{ headerShown: false }}
             />
-            {/* <Stack.Screen
+            <Stack.Screen
               name="FocusedProduct"
               component={FocusedProductScreen}
               options={{ headerShown: false }}
-            /> */}
+            />
             <Stack.Screen
               name="CheckOut"
               component={CheckOutScreen}
@@ -133,7 +132,7 @@ const App = () => {
             />
             <Stack.Screen
               name="OnBoarding"
-              component={Onboarding}
+              component={OnBoarding}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -151,6 +150,11 @@ const App = () => {
               component={WalletScreen}
               options={{ headerShown: false }}
             />
+          <Stack.Screen
+            name="MainTab"
+            component={MainTab}
+            options={{ headerShown: false }}
+          />
             <Stack.Screen
               name="AddCardScreen"
               component={AddCardScreen}

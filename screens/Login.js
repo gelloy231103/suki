@@ -53,7 +53,7 @@ const Login = ({navigation}) => {
         );
         {console.log(userData)}
         
-        navigation.navigate('ProfileDashboard');
+        navigation.navigate('OnBoarding');
       } else {
         throw new Error("User profile not found in database");
       }

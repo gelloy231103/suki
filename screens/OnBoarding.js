@@ -24,7 +24,7 @@ const slides = [
   },
 ];
 
-const SlideScreen = ({ navigation }) => {
+const OnBoarding = ({ navigation }) => {
     const [currentSlide, setCurrentSlide] = useState(0);
     const pan = useRef(new Animated.ValueXY()).current;
   
@@ -55,7 +55,10 @@ const SlideScreen = ({ navigation }) => {
       if (currentSlide < slides.length - 1) {
         setCurrentSlide(currentSlide + 1);
       } else {
-        navigation.navigate('ListProducts');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTab' }],
+        });
       }
     };
   
@@ -132,6 +135,7 @@ const styles = StyleSheet.create({
     color: '#403F3F',
     textAlign: 'center',
     marginBottom: 16,
+    fontFamily: 'Poppins', 
   },
   description: {
     fontSize: 16,
@@ -170,4 +174,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SlideScreen;
+export default OnBoarding;
