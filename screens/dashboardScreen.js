@@ -6,8 +6,22 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 const DashboardScreen = ({ navigation }) => {
   const categories = ['leafy greens', 'root crops', 'FILLERS & BEAUTY PRODUCTS'];
   const [activeTab, setActiveTab] = useState('Home');
+  const renderRatingStars = (rating) => {
+    return (
+      <View style={styles.starsContainer}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Icon 
+            key={i}
+            name={i <= rating ? 'star' : 'star-border'}
+            size={16}
+            color={i <= rating ? '#9DCD5A' : '#E0E0E0'}
 
-
+          />
+        ))}
+        <Text style={styles.reviewText}>({rating})</Text>
+      </View>
+    );
+  };
 
   // Flash Deals Data
   const flashDeals = [
@@ -117,7 +131,7 @@ const DashboardScreen = ({ navigation }) => {
       image: require('../assets/garlic.png')
     },
        {
-      id: '8',
+      id: '4',
       name: 'Broccolicious',
       price: '₱40/kg',
       rating: 4,
@@ -164,22 +178,7 @@ const DashboardScreen = ({ navigation }) => {
   ];
   const [productList, setProductList] = useState(products);
 
-  const renderRatingStars = (rating) => {
-    return (
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Icon 
-            key={i}
-            name={i <= rating ? 'star' : 'star-border'}
-            size={16}
-            color={i <= rating ? '#9DCD5A' : '#E0E0E0'}
 
-          />
-        ))}
-        <Text style={styles.reviewText}>({rating})</Text>
-      </View>
-    );
-  };
     const toggleLike = (id) => {
     setProductList(prevProducts => 
       prevProducts.map(product => 
@@ -211,7 +210,7 @@ const DashboardScreen = ({ navigation }) => {
       <View style={styles.farmRow}>
         <Icon name="home" size={15} color="#9DCD5A" />
         <Text style={styles.farmText}>Tadhana FarmVille</Text>
-        {renderRatingStars1 (4.5, 55)}
+        {renderRatingStars (4.5, 55)}
       </View>
 
       <Text style={styles.flashDealTitle}>Vegetable Sack of Marikina City</Text>
