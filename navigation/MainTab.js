@@ -7,6 +7,7 @@ import DashboardScreen from '../screens/dashboardScreen';
 import ListProductsScreen from '../screens/ListProductsScreen';
 import CheckOutScreen from '../screens/CheckOutScreen';
 import ProfileDashboard from '../screens/ProfileDashboard';
+import CartScreen from '../screens/CartScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -44,7 +45,7 @@ const MainTab = () => (
     />
     <Tab.Screen
       name="Cart"
-      component={CheckOutScreen}
+      component={CartScreen}
       options={{
         tabBarIcon: ({ color }) => <Icon name="shopping-cart" size={24} color={color} />,
         tabBarLabel: 'Cart',
