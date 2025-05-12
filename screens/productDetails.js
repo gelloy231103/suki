@@ -135,7 +135,8 @@ const ProductDetails = () => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    padding: 24,
+    justifyContent: 'center',
     backgroundColor: '#fff',
   },
   backButton: {
@@ -144,7 +145,7 @@ const styles = StyleSheet.create({
   },
   mainImage: {
     width: '100%',
-    height: 200,
+    height: 346,
     borderRadius: 10,
   },
   imageSlider: {
@@ -153,18 +154,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   thumbImage: {
-    width: 50,
-    height: 50,
+    width: 59,
+    height: 59,
     marginRight: 8,
     borderRadius: 5,
   },
   addImageButton: {
     width: 60,
-    height: 50,
-    backgroundColor: '#f0f0f0',
+    height: 60,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 5,
+    borderWidth: 1,
   },
   titleContainer: {
     flexDirection: 'row',
@@ -172,24 +174,24 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontFamily: 'Poppins-Bold',
     flex: 1,
   },
   reviews: {
-    color: 'gray',
+    color: '#BBB5B5',
     marginBottom: 10,
   },
   description: {
-    color: '#444',
+    color: '#000000',
   },
   editIcon: {
     alignSelf: 'flex-end',
     marginTop: 4,
   },
   label: {
-    marginTop: 16,
-    fontWeight: '600',
+    marginTop: 14,
+    fontFamily: 'Poppins-Bold',
   },
   row: {
     flexDirection: 'row',
@@ -224,33 +226,32 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
   saveButton: {
-    backgroundColor: '#90EE90',
+    backgroundColor: '#9DCD5A',
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
   },
   saveText: {
-    fontWeight: 'bold',
-    color: '#000',
+    fontFamily: 'Poppins-Medium',
+    color: '#FFFFFF',
+    fontSize: 14,
   },
   trashButton: {
     padding: 14,
-    borderRadius: 8,
     backgroundColor: '#fff',
   },
   currencyContainer: {
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     height: 44,
     marginRight: 10,
   },
   currencySymbol: {
     fontSize: 16,
-    color: 'gray',
+    color: '#000000',
+    fontWeight: 'medium',
   },
 });
 
