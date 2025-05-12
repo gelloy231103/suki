@@ -15,7 +15,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
-import { collection, query, where, getDocs, orderBy, doc, deleteDoc, writeBatch  } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, deleteDoc, writeBatch, onSnapshot   } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { useIsFocused } from '@react-navigation/native';
@@ -147,6 +147,8 @@ export default function DashboardScreen({navigation, route}) {
   const [visibleCount, setVisibleCount] = useState(2);
   const [isLoading, setIsLoading] = useState(false);
   const isFocused = useIsFocused();
+  const [balance, setBalance] = useState(null); 
+
 
   const fetchPaymentMethods = async () => {
     try {
@@ -174,6 +176,31 @@ export default function DashboardScreen({navigation, route}) {
   };
 
   useEffect(() => {
+    const fetchBalance = () => {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+  
+      const balanceRef = doc(db, 'users', userId, 'wallet', 'balance');
+  
+      // Listen to real-time updates
+      const unsubscribe = onSnapshot(balanceRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setBalance(data.currentBalance || 0); // Update the balance with currentBalance from Firestore
+        } else {
+          console.log('No balance document found');
+          setBalance(0); // If no document, set balance to 0
+        }
+      });
+  
+      // Cleanup the listener when the component is unmounted or if the screen is not focused
+      return () => unsubscribe();
+    };
+  
+    if (isFocused) {
+      fetchBalance();
+    }
+
     if (isFocused || route.params?.refreshCards) {
       fetchPaymentMethods();
     }
@@ -271,14 +298,16 @@ export default function DashboardScreen({navigation, route}) {
             </View>
             <View style={styles.balanceSection}>
               <View style={styles.balanceBox}>
-                <View style={{flexDirection:'row',  width:'50%'}}>
+                <View style={{ flexDirection: 'row', width: '50%' }}>
                   <MaterialCommunityIcons name="wallet" size={24} color="#fff" style={styles.balanceIconGreen} />
                   <View style={styles.balanceTextBlock}>
                     <Text style={styles.balanceLabelGreen}>Balance</Text>
-                    <Text style={styles.balanceValueLarge}>P4100</Text>
+                    <Text style={styles.balanceValueLarge}>
+                      {balance !== null ? `P${balance}` : 'Loading...'}
+                    </Text>
                   </View>
                 </View>
-                <View style={{flexDirection:'row', width:'50%'}}>
+                <View style={{ flexDirection: 'row', width: '50%' }}>
                   <MaterialCommunityIcons name="currency-php" size={24} color="#8CC63F" style={styles.balanceIconWhite} />
                   <View style={styles.balanceTextBlock}>
                     <Text style={styles.balanceLabelGreen}>Cashback</Text>
@@ -297,13 +326,13 @@ export default function DashboardScreen({navigation, route}) {
               onPress={() => navigation.navigate('WalletScreen')} 
             />
             <Action 
-            icon="barn" 
-            label="My Barn" 
-            onPress={() => navigation.navigate('FarmDashboard')} 
+              icon="credit-card" 
+              label="My Card" 
+              onPress={() => navigation.navigate('CardPage')} 
             />
-            <Action icon="receipt" label="Orders" />
-            <Action icon="history" label="History" />
-            <Action icon="star-outline" label="Rate It" />
+            <Action icon="barn" label="My Barn"/>
+            <Action icon="receipt" label="My Orders" />
+            <Action icon="history" label="My History" />
           </View>
 
           {/* Saved Card Section */}
