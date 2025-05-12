@@ -76,7 +76,11 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
+<<<<<<< HEAD
             initialRouteName="FarmDashboard"
+=======
+            initialRouteName="Wallet"
+>>>>>>> 9abb6c8b93da2ca66049ffabade0a056bc0f7295
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
