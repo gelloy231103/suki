@@ -41,7 +41,7 @@ const FocusedProductScreen = () => {
 
         <View style={styles.imageContainer}>
           <Image
-            source={require('../assets/tomatoes.png')}
+            source={require('../assets/f-image-tomato.png')}
             style={styles.productImage}
           />
           <TouchableOpacity style={styles.heartIcon}>
@@ -113,16 +113,16 @@ const FocusedProductScreen = () => {
           <MapView
             style={styles.mapView}
             initialRegion={{
-              latitude: 37.78825,
-              longitude: -122.4324,
+              latitude: 14.670605106704915,
+              longitude: 121.33927325892779,
               latitudeDelta: 0.01,
               longitudeDelta: 0.01,
             }}
           >
             <Marker
               coordinate={{ latitude: 37.78825, longitude: -122.4324 }}
-              title="Tadhana Farm Ville"
-              description="Sweet Tomatoes Farm Location"
+              title="Palaya Eco-Natural Farm"
+              description="Sweet Dragonfruit Farm"
             />
           </MapView>
 
