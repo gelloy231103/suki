@@ -54,6 +54,16 @@ const products = [
     farm: 'Tadhana Farm Ville',
     image: require('../assets/tomatoes.png'),
     liked: false
+  },
+    {
+    id: '6',
+    name: 'Sweet Tomatoes',
+    price: 'P38/kg',
+    rating: 4,
+    reviews: 354,
+    farm: 'Tadhana Farm Ville',
+    image: require('../assets/tomatoes.png'),
+    liked: false
   }
 ];
 
@@ -62,6 +72,7 @@ const ListProductsScreen = () => {
   const [productList, setProductList] = useState(products);
   const [activeCategory, setActiveCategory] = useState('Leaf greens');
   const [priceFilter, setPriceFilter] = useState('lowest to high');
+  const [activeTab, setActiveTab] = useState('Browse');
 
   const toggleLike = (id) => {
     setProductList(prevProducts => 
@@ -69,10 +80,6 @@ const ListProductsScreen = () => {
         product.id === id ? {...product, liked: !product.liked} : product
       )
     );
-  };
-
-  const togglePriceFilter = () => {
-    setPriceFilter(prev => prev === 'lowest to high' ? 'highest to low' : 'lowest to high');
   };
 
   const renderRatingStars = (rating) => {
@@ -83,7 +90,7 @@ const ListProductsScreen = () => {
             key={i}
             name={i <= rating ? 'star' : 'star-border'}
             size={16}
-            color={i <= rating ? '#FFD700' : '#CCCCCC'}
+            color={i <= rating ? '#FF5252' : '#E0E0E0'}
           />
         ))}
       </View>
@@ -107,45 +114,28 @@ const ListProductsScreen = () => {
         </View>
         
         <View style={styles.farmContainer}>
-          <Icon name="home" size={16} color="#9DCD5A" />
+          <Icon name="location-on" size={16} color="#9DCD5A" />
           <Text style={styles.farmText}>{item.farm}</Text>
         </View>
       </View>
       
-      <TouchableOpacity 
-        style={styles.likeButton}
-        onPress={() => toggleLike(item.id)}
-      >
-        <Icon 
-          name={item.liked ? 'favorite' : 'favorite-border'} 
-          size={24} 
-          color={item.liked ? '#FF5252' : '#CCCCCC'} 
-        />
-      </TouchableOpacity>
+      <View style={styles.likeButtonContainer}>
+        <TouchableOpacity onPress={() => toggleLike(item.id)}>
+          <Icon 
+            name={item.liked ? 'favorite' : 'favorite-border'} 
+            size={24} 
+            color={item.liked ? '#FF5252' : '#CCCCCC'} 
+          />
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header with Logo and Search */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#403F3F" />
-        </TouchableOpacity>
-
-        <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Icon name="message" size={24} color="#403F3F" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Icon name="shopping-bag" size={24} color="#403F3F" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Vegetables</Text>
+        <Image source={require('../assets/suki-big-logo.png')} style={styles.logo} />
         <View style={styles.searchContainer}>
           <Icon
             name="search"
@@ -154,12 +144,13 @@ const ListProductsScreen = () => {
             style={styles.searchIcon}
           />
           <TextInput
-            placeholder="Search for vegetables..."
+            placeholder="Search for local products..."
             style={styles.searchInput}
             placeholderTextColor="#999"
           />
         </View>
       </View>
+
       {/* Categories */}
       <ScrollView
         horizontal
@@ -187,27 +178,22 @@ const ListProductsScreen = () => {
         ))}
       </ScrollView>
 
-      {/* Filter Row */}
-      <View style={styles.filterRow}>
-        <TouchableOpacity style={styles.filterButton}>
-          <Icon name="filter-list" size={20} color="#9DCD5A" />
-          <Text style={styles.filterText}>Filters</Text>
+      {/* Filters and Sorting */}
+      <View style={styles.filtersRow}>
+        <TouchableOpacity style={styles.filterItem}>
+          <Icon name="tune" size={20} color="#666" />
+          <Text style={styles.filterText}>Filter</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.priceFilterButton}
-          onPress={togglePriceFilter}
+        
+        <TouchableOpacity 
+          style={styles.filterItem}
+          onPress={() => setPriceFilter(prev => prev === 'lowest to high' ? 'highest to low' : 'lowest to high')}
         >
-          <Text style={styles.priceFilterText}>Price: {priceFilter}</Text>
-          <Icon
-            name={
-              priceFilter === "lowest to high"
-                ? "arrow-drop-down"
-                : "arrow-drop-up"
-            }
-            size={20}
-            color="#9DCD5A"
-          />
+          <Text style={styles.filterText}>Price: {priceFilter}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.filterItem}>
+          <Icon name="grid-on" size={20} color="#666" />
         </TouchableOpacity>
       </View>
 
@@ -227,6 +213,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9F9F9',
+    paddingBottom: 10,
   },
   header: {
     flexDirection: 'row',
@@ -236,64 +223,50 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     backgroundColor: '#F9F9F9',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  logo: {
+    width: 100,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    height: 40,
+    marginLeft: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 14,
     color: '#403F3F',
   },
-  headerIcons: {
-    flexDirection: 'row',
-  },
-  headerIcon: {
-    marginLeft: 16,
-  },
-headerRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  paddingHorizontal: 16,
-  marginBottom: 16,
-},
-headerTitle: {
-  fontSize: 30,
-  fontWeight: 'bold',
-  color: '#009216',
-  marginRight: 10, // Add some spacing between title and search
-},
-searchContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#FFF',
-  borderRadius: 8,
-  paddingHorizontal: 16,
-  height: 48,
-  flex: 1, // Take up remaining space
-  elevation: 2,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.1,
-  shadowRadius: 2,
-},
-searchIcon: {
-  marginRight: 8,
-},
-searchInput: {
-  flex: 1,
-  height: '100%',
-  fontSize: 16,
-  color: '#403F3F',
-},
   categoriesContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    height: 50,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
   },
   categoryButton: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 16,
     backgroundColor: '#EEE',
-    marginRight: 8,
+    marginRight: 12,
+    height: 50,
+    justifyContent: 'center', 
+    alignItems: 'center',   
+    marginTop: -10,
+    marginBottom: 5,
   },
   activeCategoryButton: {
     backgroundColor: '#9DCD5A',
@@ -306,32 +279,24 @@ searchInput: {
     color: '#FFF',
     fontWeight: 'bold',
   },
-  filterRow: {
+  filtersRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
+    marginBottom: -8,
+    marginTop: 5,
   },
-  filterButton: {
+  filterItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 8,
   },
   filterText: {
-    marginLeft: 4,
-    fontSize: 14,
-    color: '#9DCD5A',
-    fontWeight: 'bold',
-  },
-  priceFilterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  priceFilterText: {
     fontSize: 14,
     color: '#666',
+    marginLeft: 4,
   },
   listContent: {
     padding: 16,
@@ -351,7 +316,7 @@ searchInput: {
   productImage: {
     width: 80,
     height: 80,
-    borderRadius: 8,
+    borderRadius: 12,
     marginRight: 12,
   },
   productInfo: {
@@ -391,10 +356,10 @@ searchInput: {
     color: '#666',
     marginLeft: 4,
   },
-  likeButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
+  likeButtonContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
 });
 

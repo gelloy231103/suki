@@ -1,16 +1,25 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore'; // Add this import
+
+
+
+// https://firebase.google.com/docs/web/setup#available-libraries
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDWKEqNYbGkWtioI-cSmcZ_Vqc_Pcspenk",
-  authDomain: "reviewcenter-99dd5.firebaseapp.com",
-  projectId: "reviewcenter-99dd5",
-  storageBucket: "reviewcenter-99dd5.firebasestorage.app",
-  messagingSenderId: "1000293189591",
-  appId: "1:1000293189591:web:ef2f2f4389ef9dba83ad92",
-  measurementId: "G-HW4LE792YF"
+  apiKey: "AIzaSyCYCCIjHqHPUrCFCdVAA6LsIC9RpMfMueY",
+  authDomain: "suki-85b44.firebaseapp.com",
+  projectId: "suki-85b44",
+  storageBucket: "suki-85b44.firebasestorage.app",
+  messagingSenderId: "851872082143",
+  appId: "1:851872082143:web:e03a1d7e2cab0b9713e16a",
+  measurementId: "G-T7Q69C7WWQ"
 };
 
+
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+const auth = getAuth(app);
+const db = getFirestore(app); // Initialize Firestore
+
+export { auth, db }; // Export both auth and db
