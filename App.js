@@ -32,6 +32,7 @@ import { AuthProvider } from './context/AuthContext';
 import AddCardScreen from './screens/AddCardScreen';
 import OnBoarding from './screens/OnBoarding';
 import MainTab from './navigation/MainTab';
+import CardPage from './screens/CardPage';
 
 const Stack = createStackNavigator();
 
@@ -74,7 +75,7 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
-            initialRouteName="Wallet"
+            initialRouteName="LandingScreen"
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
@@ -138,6 +139,11 @@ const App = () => {
             <Stack.Screen
               name="ProfileDashboard"
               component={ProfileDashboard}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CardPage"
+              component={CardPage}
               options={{ headerShown: false }}
             />
             <Stack.Screen

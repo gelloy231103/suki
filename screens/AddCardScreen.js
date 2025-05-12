@@ -5,9 +5,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   doc, 
-  collection, 
+  query,
+  collection,
+  getDocs, 
   addDoc,
-  serverTimestamp 
+  where,
+  serverTimestamp,
+  updateDoc 
 } from 'firebase/firestore';
 
 
@@ -165,10 +169,12 @@ const AddCardScreen = ({ navigation, route }) => {
       // If setting as default, first unset any existing default cards
       if (isDefault) {
         const paymentMethodsRef = collection(db, 'users', userId, 'paymentMethods');
-        const querySnapshot = await getDocs(query(paymentMethodsRef, where('isDefault', '==', true)));
-        
-        querySnapshot.forEach(async (doc) => {
-          await updateDoc(doc.ref, { isDefault: false });
+        const q = query(paymentMethodsRef, where('isDefault', '==', true));
+        const querySnapshot = await getDocs(q);  // Use getDocs instead of getDoc
+  
+        // Unset default on all existing payment methods
+        querySnapshot.forEach((docSnap) => {
+          updateDoc(docSnap.ref, { isDefault: false });
         });
       }
   
@@ -181,7 +187,7 @@ const AddCardScreen = ({ navigation, route }) => {
         expiryYear,
         isDefault, // Include the selected default status
         createdAt: serverTimestamp(),
-        lastUsed: serverTimestamp()
+        lastUsed: serverTimestamp(),
       };
   
       const paymentMethodsRef = collection(db, 'users', userId, 'paymentMethods');
@@ -190,9 +196,9 @@ const AddCardScreen = ({ navigation, route }) => {
       navigation.navigate({
         name: 'ProfileDashboard',
         params: { refreshCards: true },
-        merge: true
+        merge: true,
       });
-      
+  
     } catch (error) {
       console.error("Error adding card:", error);
       Alert.alert("Error", "Failed to add card. Please try again.");
@@ -200,6 +206,7 @@ const AddCardScreen = ({ navigation, route }) => {
       setIsLoading(false);
     }
   };
+  
 
 const { onCardAdded } = route.params;
 
