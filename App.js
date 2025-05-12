@@ -37,6 +37,7 @@ import EditFarmProfile from './screens/EditFarmProfile.js'
 import ProductDetails from './screens/productDetails.js';
 import ProductList from './screens/ProductList.js';
 import AddProductScreen from './screens/AddProductScreen.js';
+import ProductsScreen from './screens/ProductsScreen.js';
 
 const Stack = createStackNavigator();
 
@@ -79,7 +80,7 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
-            initialRouteName="Login"
+            initialRouteName="ProductsScreen"
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
@@ -193,6 +194,11 @@ const App = () => {
             <Stack.Screen
             name="AddProductScreen"
             component={AddProductScreen}
+            options={{ headerShown: false }}
+            />
+            <Stack.Screen
+            name="ProductsScreen"
+            component={ProductsScreen}
             options={{ headerShown: false }}
             />
           </Stack.Navigator>
