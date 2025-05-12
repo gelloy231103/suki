@@ -15,7 +15,7 @@ const DashboardScreen = ({ navigation }) => {
       reviews: 55,
       name: 'Vegetable Sack of Marikina City',
       inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: 'P 500 Per Sack',
+      price: '₱ 500 Per Sack',
       image: require('../assets/sale1.png')
     },
     {
@@ -25,7 +25,7 @@ const DashboardScreen = ({ navigation }) => {
       reviews: 55,
       name: 'Vegetable Sack of Marikina City',
       inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: 'P 500 Per Sack',
+      price: '₱ 500 Per Sack',
       image: require('../assets/sale1.png')
     },
     {
@@ -35,7 +35,7 @@ const DashboardScreen = ({ navigation }) => {
       reviews: 55,
       name: 'Vegetable Sack of Marikina City',
       inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: 'P 500 Per Sack',
+      price: '₱ 500 Per Sack',
       image: require('../assets/sale1.png')
     },
     {
@@ -45,9 +45,39 @@ const DashboardScreen = ({ navigation }) => {
       reviews: 55,
       name: 'Vegetable Sack of Marikina City',
       inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
-      price: 'P 500 Per Sack',
+      price: '₱ 500 Per Sack',
       image: require('../assets/sale1.png')
-    }
+    },
+    {
+      id: '5',
+      farm: 'Habano Farm and Grill',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
+    {
+      id: '6',
+      farm: 'Habano Farm and Grill',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
+        {
+      id: '7',
+      farm: 'Habano Farm and Grill',
+      rating: 4.5,
+      reviews: 55,
+      name: 'Vegetable Sack of Marikina City',
+      inclusions: ['Majority of Root Crops', 'Tomatoes', 'Corn'],
+      price: '₱ 500 Per Sack',
+      image: require('../assets/sale1.png')
+    },
   ];
 
   // Regular Products Data
@@ -55,7 +85,7 @@ const DashboardScreen = ({ navigation }) => {
     {
       id: '1',
       name: 'Sweet Tomatoes',
-      price: 'P40/kg',
+      price: '₱40/kg',
       rating: 4,
       reviews: 354,
       farm: 'Tadhana FarmVille',
@@ -64,7 +94,7 @@ const DashboardScreen = ({ navigation }) => {
     {
       id: '2',
       name: 'Biggest Eggplant',
-      price: 'P80/kg',
+      price: '₱80/kg',
       rating: 4,
       reviews: 354,
       farm: 'Marikina Farm and Restaurant',
@@ -73,7 +103,7 @@ const DashboardScreen = ({ navigation }) => {
     {
       id: '3',
       name: 'Broccolicious',
-      price: 'P40/kg',
+      price: '₱40/kg',
       rating: 4,
       reviews: 354,
       farm: 'Habano Farm and Grill',
@@ -82,12 +112,48 @@ const DashboardScreen = ({ navigation }) => {
    {
       id: '4',
       name: 'Broccolicious',
-      price: 'P40/kg',
+      price: '₱40/kg',
       rating: 4,
       reviews: 354,
       farm: 'Habano Farm and Grill',
       image: require('../assets/garlic.png')
-    }
+    },
+       {
+      id: '5',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
+       {
+      id: '6',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
+       {
+      id: '7',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
+       {
+      id: '8',
+      name: 'Broccolicious',
+      price: '₱40/kg',
+      rating: 4,
+      reviews: 354,
+      farm: 'Habano Farm and Grill',
+      image: require('../assets/garlic.png')
+    },
   ];
 const [productList, setProductList] = useState(products);
 
@@ -104,6 +170,13 @@ const [productList, setProductList] = useState(products);
         ))}
         <Text style={styles.reviewText}>({rating})</Text>
       </View>
+    );
+  };
+    const toggleLike = (id) => {
+    setProductList(prevProducts => 
+      prevProducts.map(product => 
+        product.id === id ? {...product, liked: !product.liked} : product
+      )
     );
   };
 
@@ -247,12 +320,12 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    marginBottom: 70, // Matches bottom menu height
+    marginBottom: 40, // Matches bottom menu height
   },
   contentContainer: {
-    padding: 16,
-    paddingTop: 50,
-    paddingBottom: 20,
+    padding: 8,
+    paddingTop: 40,
+    paddingBottom: 0,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -274,7 +347,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: '100%',
-    height: 140,
+    height: 120,
     marginBottom: 20,
   },
   categoriesContainer: {
@@ -319,7 +392,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   flashDealsContainer: {
-    paddingBottom: 20,
+    paddingBottom: 5,
   },
   flashDealCard: {
     width: 220,
@@ -383,24 +456,27 @@ const styles = StyleSheet.create({
   productsRow: {
     justifyContent: 'space-between',
     marginBottom: 15,
+
   },
   productCard: {
     flexDirection: 'row',
     backgroundColor: '#FFF',
     borderRadius: 12,
     marginBottom: 16,
-    padding: 12,
-    elevation: 2,
+    padding: 10,
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    alignItems: 'center',
   },
   productImage: {
     width: 80,
     height: 80,
     borderRadius: 12,
     marginRight: 12,
+    marginTop: 8,
   },
   productInfo: {
     flex: 1,
@@ -414,7 +490,7 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#9DCD5A',
+    color: '#009216',
     marginBottom: 8,
   },
   ratingContainer: {
