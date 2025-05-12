@@ -1,28 +1,68 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, StyleSheet, Modal, TouchableWithoutFeedback, FlatList } from 'react-native';
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { 
+  View, Text, TextInput, Image, TouchableOpacity, 
+  ScrollView, StyleSheet, Modal, TouchableWithoutFeedback, 
+  FlatList, ActivityIndicator 
+} from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dialog, Portal, Button as PaperButton } from 'react-native-paper';
 import { Calendar } from 'react-native-calendars';
 import { format } from 'date-fns';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  updateDoc, 
+  query, 
+  where, 
+  orderBy,
+  serverTimestamp,
+  writeBatch,
+  addDoc
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { AuthContext } from '../context/AuthContext';
 
 const ProfileScreen = ({ navigation }) => {
-  const initialState = {
-    name: 'Aron Jeric Cao',
-    lName: 'Cao',
-    mName: '-',
-    gender: 'Male',
-    email: 'aronjericandrade@gmail.com',
+  const { userData, saveUserData } = useContext(AuthContext);
+  const [loading, setLoading] = useState(true);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [saving, setSaving] = useState(false); // New state for save operation
+  
+  // User profile state
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    middleName: '',
+    gender: '',
+    email: '',
+    phone: '',
     password: '',
-    billing1: '4 E Jacinto St., Sta. Elena, Marikina City, NCR',
-    billing2: '4 E Jacinto St., Sta. Elena, Marikina City, NCR',
-  };
+    birthDate: null
+  });
+  const [originalData, setOriginalData] = useState({});
+  
+  // Address state
+  const [addresses, setAddresses] = useState([]);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [currentAddressId, setCurrentAddressId] = useState(null);
+  const [newAddress, setNewAddress] = useState({
+    street: '',
+    region: 'NCR',
+    province: '',
+    city: '',
+    barangay: '',
+    postalCode: '',
+    type: 'Home',
+    isDefault: false
+  });
 
-  const [formData, setFormData] = useState(initialState);
-  const [originalData, setOriginalData] = useState(initialState);
-  const [isEditable, setIsEditable] = useState(true);
+  // UI state
+  const [isEditable, setIsEditable] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date(2003, 8, 16));
   const [focusedField, setFocusedField] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [showGenderModal, setShowGenderModal] = useState(false);
@@ -30,155 +70,287 @@ const ProfileScreen = ({ navigation }) => {
   const [visibleDialog, setVisibleDialog] = useState(false);
   const [dialogConfig, setDialogConfig] = useState({ title: '', message: '', actions: [] });
 
- // Add these new states for address management
- const [showAddressModal, setShowAddressModal] = useState(false);
- const [isEditingAddress, setIsEditingAddress] = useState(false);
- const [currentAddressId, setCurrentAddressId] = useState(null);
- const [addresses, setAddresses] = useState([
-   {
-     id: '1',
-     street: '432 E Jochito St.',
-     region: 'NCR',
-     city: 'Marikina City',
-     barangay: 'Sta. Elena',
-     postalCode: '1800',
-     type: 'Home',
-     isDefault: true
-   },
-   {
-     id: '2',
-     street: '4 E Jacinto St.',
-     region: 'NCR',
-     city: 'Marikina City',
-     barangay: 'Sta. Elena',
-     postalCode: '1800',
-     type: 'Work',
-     isDefault: false
-   }
- ]);
-
- const [newAddress, setNewAddress] = useState({
-   street: '',
-   region: '',
-   province: '',
-   city: '',
-   barangay: '',
-   postalCode: '',
-   type: 'Home',
-   isDefault: false
- });
-
- const handleAddAddress = () => {
-   setIsEditingAddress(false);
-   setCurrentAddressId(null);
-   setNewAddress({
-     street: '',
-     region: '',
-     province: '',
-     city: '',
-     barangay: '',
-     postalCode: '',
-     type: 'Home',
-     isDefault: false
-   });
-   setShowAddressModal(true);
- };
-
- const handleSaveAddress = () => {
-   if (isEditingAddress && currentAddressId) {
-     // Update existing address
-     setAddresses(prevAddresses => 
-       prevAddresses.map(addr => 
-         addr.id === currentAddressId 
-           ? { ...newAddress, id: currentAddressId }
-           : newAddress.isDefault ? { ...addr, isDefault: false } : addr
-       )
-     );
-   } else {
-     // Add new address
-     const formattedAddress = {
-       id: Date.now().toString(),
-       ...newAddress
-     };
-
-     if (newAddress.isDefault) {
-       // Set all other addresses to non-default
-       setAddresses(prev => 
-         prev.map(addr => ({ ...addr, isDefault: false }))
-         .concat(formattedAddress)
-       );
-     } else {
-       setAddresses(prev => [...prev, formattedAddress]);
-     }
-   }
-
-   setShowAddressModal(false);
- };
-
- const handleAddressSelect = (address) => {
-   setIsEditingAddress(true);
-   setCurrentAddressId(address.id);
-   setNewAddress({
-     street: address.street,
-     region: address.region,
-     province: address.province || '',
-     city: address.city,
-     barangay: address.barangay,
-     postalCode: address.postalCode,
-     type: address.type,
-     isDefault: address.isDefault
-   });
-   setShowAddressModal(true);
- };
-
- const getAddressDisplay = (address) => {
-   return `${address.street}, ${address.barangay}, ${address.city}, ${address.region}, ${address.postalCode}`;
- };
- 
+  // Format date for display
+  const formatDate = (date) => {
+    if (!date) return 'Select your birthday';
+    try {
+      return format(new Date(date), 'MMMM d, yyyy');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
 
   const inputRefs = useRef({});
-  
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData);
 
   // Gender options with icons
   const genderOptions = [
-    { 
-      value: 'Male', 
-      icon: 'male', 
-      iconLib: FontAwesome5,
-      iconColor: '#4285F4'
-    },
-    { 
-      value: 'Female', 
-      icon: 'female', 
-      iconLib: FontAwesome5,
-      iconColor: '#EA4335'
-    },
-    { 
-      value: 'Other', 
-      icon: 'gender-male-female', 
-      iconLib: MaterialCommunityIcons,
-      iconColor: '#34A853'
-    },
-    { 
-      value: 'Prefer not to say', 
-      icon: 'eye-off', 
-      iconLib: Feather,
-      iconColor: '#9E9E9E'
-    }
+    { value: 'Male', icon: 'male', iconLib: FontAwesome5, iconColor: '#4285F4' },
+    { value: 'Female', icon: 'female', iconLib: FontAwesome5, iconColor: '#EA4335' },
+    { value: 'Other', icon: 'gender-male-female', iconLib: MaterialCommunityIcons, iconColor: '#34A853' },
+    { value: 'Prefer not to say', icon: 'eye-off', iconLib: Feather, iconColor: '#9E9E9E' }
   ];
+
+  // Fetch additional user data and addresses from Firestore
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (!userData?.userId) return;
+
+        const userDoc = await getDoc(doc(db, 'users', userData.userId));
+        
+        if (userDoc.exists()) {
+          const userDataFromFirestore = userDoc.data();
+          
+          // Initialize form data with values from AuthContext or Firestore
+          const updatedFormData = {
+            firstName: userData.firstName || userDataFromFirestore.firstName || '',
+            lastName: userData.lastName || userDataFromFirestore.lastName || '',
+            middleName: userData.middleName || userDataFromFirestore.middleName || '',
+            gender: userDataFromFirestore.gender || '',
+            email: userData.email || userDataFromFirestore.email || '',
+            phone: userDataFromFirestore.phone || '',
+            password: '',
+            birthDate: userDataFromFirestore.birthDate?.toDate() || null
+          };
+          
+          setFormData(updatedFormData);
+          setOriginalData(updatedFormData);
+
+          // ... (keep existing address fetching code)
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+        setLoadingAddresses(false);
+      }
+    };
+    
+    fetchData();
+  }, [userData]);
 
   // Validation functions
   const validateName = (name) => /^[A-Za-z\s\-']{2,50}$/.test(name);
   const validateEmail = (email) => /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email);
-  const validatePassword = (password) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$%^&+=!]).{8,}$/.test(password);
+  const validatePassword = (password) => password === '' || /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$%^&+=!]).{8,}$/.test(password);
+  const validatePhone = (phone) => phone === '' || /^[0-9]{11}$/.test(phone);
 
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!validateName(formData.firstName)) errors.firstName = 'Invalid first name';
+    if (!validateName(formData.lastName)) errors.lastName = 'Invalid last name';
+    if (formData.middleName && !validateName(formData.middleName)) errors.middleName = 'Invalid middle name';
+    if (!validateEmail(formData.email)) errors.email = 'Invalid email address';
+    if (!validatePhone(formData.phone)) errors.phone = 'Phone must be 11 digits';
+    if (!validatePassword(formData.password)) errors.password = 'Password must contain at least 8 characters, one uppercase, one lowercase, one number and one special character';
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Dialog helpers
   const showDialog = (title, message, actions) => {
     setDialogConfig({ title, message, actions });
     setVisibleDialog(true);
   };
 
   const hideDialog = () => setVisibleDialog(false);
+
+  // Date handling
+  const handleDateSelect = (day) => {
+    const newDate = new Date(day.dateString);
+    setFormData({...formData, birthDate: newDate});
+    setShowDatePicker(false);
+  };
+
+  // Gender handling
+  const handleGenderSelect = (gender) => {
+    setFormData({ ...formData, gender });
+    setShowGenderModal(false);
+  };
+
+  // Address handling
+  const handleAddAddress = () => {
+    setIsEditingAddress(false);
+    setCurrentAddressId(null);
+    setNewAddress({
+      street: '',
+      region: 'NCR',
+      province: '',
+      city: '',
+      barangay: '',
+      postalCode: '',
+      type: 'Home',
+      isDefault: addresses.length === 0
+    });
+    setShowAddressModal(true);
+  };
+
+  const handleAddressSelect = (address) => {
+    setIsEditingAddress(true);
+    setCurrentAddressId(address.id);
+    setNewAddress({
+      street: address.street,
+      region: address.region,
+      province: address.province || '',
+      city: address.city,
+      barangay: address.barangay,
+      postalCode: address.postalCode,
+      type: address.type,
+      isDefault: address.isDefault
+    });
+    setShowAddressModal(true);
+  };
+
+  const handleSaveAddress = async () => {
+    try {
+      const addressData = {
+        street: newAddress.street,
+        region: newAddress.region,
+        province: newAddress.province,
+        city: newAddress.city,
+        barangay: newAddress.barangay,
+        postalCode: newAddress.postalCode,
+        type: newAddress.type,
+        isDefault: newAddress.isDefault,
+        updatedAt: serverTimestamp()
+      };
+
+      const userRef = doc(db, 'users', userData.userId);
+      
+      if (isEditingAddress && currentAddressId) {
+        // Update existing address
+        await updateDoc(doc(db, 'users', userData.userId, 'addresses', currentAddressId), addressData);
+        
+        // If this is now the default, update others
+        if (newAddress.isDefault) {
+          const batch = writeBatch(db);
+          const addressesRef = collection(db, 'users', userData.userId, 'addresses');
+          const q = query(
+            addressesRef, 
+            where('isDefault', '==', true),
+            where('__name__', '!=', currentAddressId)
+          );
+          const snapshot = await getDocs(q);
+            
+          snapshot.forEach(doc => {
+            batch.update(doc.ref, { isDefault: false });
+          });
+          await batch.commit();
+        }
+      } else {
+        // Add new address
+        if (newAddress.isDefault) {
+          const batch = writeBatch(db);
+          const addressesRef = collection(db, 'users', userData.userId, 'addresses');
+          const q = query(addressesRef, where('isDefault', '==', true));
+            
+          const snapshot = await getDocs(q);
+          snapshot.forEach(doc => {
+            batch.update(doc.ref, { isDefault: false });
+          });
+          await batch.commit();
+        }
+        
+        await addDoc(collection(db, 'users', userData.userId, 'addresses'), {
+          ...addressData,
+          createdAt: serverTimestamp()
+        });
+      }
+      
+      // Refresh addresses
+      const addressesRef = collection(db, 'users', userData.userId, 'addresses');
+      const q = query(addressesRef, orderBy('createdAt', 'desc'));
+      const updatedAddresses = await getDocs(q);
+      
+      setAddresses(updatedAddresses.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })));
+      
+      setShowAddressModal(false);
+    } catch (error) {
+      console.error("Error saving address:", error);
+      showDialog('Error', 'Failed to save address. Please try again.', [
+        { text: 'OK', onPress: hideDialog }
+      ]);
+    }
+  };
+
+  // Save profile changes
+  const handleSave = async () => {
+    if (!validateForm()) return;
+    
+    showDialog(
+      'Confirm Changes',
+      'Are you sure you want to save these changes?',
+      [
+        { text: 'Cancel', onPress: hideDialog },
+        {
+          text: 'Yes', 
+          onPress: async () => {
+            setSaving(true); // Start loading indicator
+            try {
+              // Prepare updated data
+              const updatedData = {
+                firstName: formData.firstName || "",
+                lastName: formData.lastName || "",
+                middleName: formData.middleName || "",
+                gender: formData.gender || "",
+                phone: formData.phone || "",
+                birthDate: formData.birthDate ? serverTimestamp(formData.birthDate) : null,
+                lastUpdated: serverTimestamp()
+              };
+
+              // Update in Firebase
+              await updateDoc(doc(db, 'users', userData.userId), updatedData);
+
+              // Also update the AuthContext with the new basic info
+              saveUserData(
+                formData.email || userData.email,
+                userData.userId,
+                {
+                  firstName: formData.firstName,
+                  lastName: formData.lastName,
+                  middleName: formData.middleName
+                }
+              );
+
+              // Update email if changed
+              if (formData.email !== originalData.email) {
+                await auth.currentUser.updateEmail(formData.email);
+                await updateDoc(doc(db, 'users', userData.userId), { email: formData.email });
+              }
+
+              // Update password if changed
+              if (formData.password) {
+                await auth.currentUser.updatePassword(formData.password);
+              }
+
+              setOriginalData(formData);
+              setIsEditable(false);
+              setValidationErrors({});
+              setFocusedField(null);
+              
+              showDialog('Success', 'Your changes have been saved successfully', [
+                { text: 'OK', onPress: hideDialog }
+              ]);
+            } catch (error) {
+              console.error("Error saving changes:", error);
+              showDialog('Error', 'Failed to save changes. Please try again.', [
+                { text: 'OK', onPress: hideDialog }
+              ]);
+            } finally {
+              setSaving(false); // Stop loading indicator
+            }
+          }
+        },
+      ]
+    );
+  };
 
   const handleBackPress = () => {
     if (hasChanges) {
@@ -193,100 +365,49 @@ const ProfileScreen = ({ navigation }) => {
               hideDialog();
               setFormData(originalData);
               setIsEditable(false);
-              navigation.navigate('ProfileDashboard');
+              navigation.goBack();
             }
           },
         ]
       );
     } else {
-      navigation.navigate('ProfileDashboard');
+      navigation.goBack();
     }
   };
 
-  const validateForm = () => {
-    const errors = {};
+  const getAddressDisplay = (address) => {
+    const parts = [
+      address.street,
+      address.barangay,
+      address.city,
+      address.province,
+      address.region,
+      address.postalCode
+    ].filter(part => part && part.trim() !== '');
     
-    if (!validateName(formData.name)) {
-      errors.name = 'Invalid first name';
-    }
-    
-    if (!validateName(formData.lName)) {
-      errors.lName = 'Invalid last name';
-    }
-    
-    if (formData.mName !== '-' && !validateName(formData.mName)) {
-      errors.mName = 'Invalid middle name';
-    }
-    
-    if (!validateEmail(formData.email)) {
-      errors.email = 'Invalid email address';
-    }
-    
-    if (formData.password && !validatePassword(formData.password)) {
-      errors.password = 'Password must contain at least 8 characters, one uppercase, one lowercase, one number and one special character';
-    }
-    
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    return parts.join(', ');
   };
 
-  const handleSave = () => {
-    if (!validateForm()) {
-      return;
-    }
-    
-    showDialog(
-      'Confirm Changes',
-      'Are you sure you want to save these changes?',
-      [
-        { text: 'Cancel', onPress: hideDialog },
-        {
-          text: 'Yes', 
-          onPress: () => {
-            hideDialog();
-            setOriginalData(formData);
-            setIsEditable(false);
-            setValidationErrors({});
-            setFocusedField(null);
-            showDialog('Success', 'Your changes have been saved successfully', [
-              { text: 'OK', onPress: hideDialog }
-            ]);
-          }
-        },
-      ]
+  const getInputStyle = (fieldName) => [
+    styles.inputBox,
+    focusedField === fieldName && { borderColor: '#9DCD5A', borderWidth: 1 },
+    validationErrors[fieldName] && { borderColor: 'red', borderWidth: 1 }
+  ];
+
+  const getInfoInputStyle = (fieldName) => [
+    styles.infoInput,
+    focusedField === fieldName && { borderBottomColor: '#9DCD5A', borderBottomWidth: 1 },
+    validationErrors[fieldName] && { borderBottomColor: 'red', borderBottomWidth: 1 }
+  ];
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#9DCD5A" />
+        <Text style={styles.loadingText}>Loading your profile...</Text>
+      </SafeAreaView>
     );
-  };
-
-  const formatDate = (date) => {
-    return format(date, 'MMMM d, yyyy');
-  };
-
-  const handleDateSelect = (day) => {
-    const newDate = new Date(day.dateString);
-    setSelectedDate(newDate);
-    setShowDatePicker(false);
-  };
-
-  const getInputStyle = (fieldName) => {
-    return [
-      styles.inputBox,
-      focusedField === fieldName && { borderColor: '#9DCD5A', borderWidth: 1 },
-      validationErrors[fieldName] && { borderColor: 'red', borderWidth: 1 }
-    ];
-  };
-
-  const getInfoInputStyle = (fieldName) => {
-    return [
-      styles.infoInput,
-      focusedField === fieldName && { borderBottomColor: '#9DCD5A', borderBottomWidth: 1 },
-      validationErrors[fieldName] && { borderBottomColor: 'red', borderBottomWidth: 1 }
-    ];
-  };
-
-  const handleGenderSelect = (gender) => {
-    setFormData({ ...formData, gender });
-    setShowGenderModal(false);
-  };
+  }
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -295,8 +416,15 @@ const ProfileScreen = ({ navigation }) => {
           <TouchableOpacity onPress={handleBackPress}>
             <Ionicons name="arrow-back" size={24} color="black" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setIsEditable(!isEditable)}>
-            <Ionicons name={isEditable ? "checkmark" : "create"} size={24} color="#9DCD5A" />
+          <TouchableOpacity 
+            onPress={() => setIsEditable(!isEditable)}
+            disabled={saving} // Disable edit button while saving
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="#9DCD5A" />
+            ) : (
+              <Ionicons name={isEditable ? "checkmark" : "create"} size={24} color="#9DCD5A" />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -316,11 +444,11 @@ const ProfileScreen = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.infoSection}>
-            {['name', 'lName', 'mName'].map((key, idx) => (
+                    <View style={styles.infoSection}>
+            {['firstName', 'lastName', 'middleName'].map((key, idx) => (
               <View key={idx}>
                 <Text style={styles.infoLabel}>
-                  {key === 'name' ? 'First Name' : key === 'lName' ? 'Last Name' : 'Middle Name'}
+                  {key === 'firstName' ? 'First Name' : key === 'lastName' ? 'Last Name' : 'Middle Name'}
                 </Text>
                 <View style={styles.infoRow}>
                   <TextInput
@@ -328,7 +456,7 @@ const ProfileScreen = ({ navigation }) => {
                     value={formData[key]}
                     onChangeText={(text) => setFormData({ ...formData, [key]: text })}
                     editable={isEditable}
-                    placeholder="Enter name"
+                    placeholder={`Enter ${key === 'middleName' ? 'middle name (optional)' : key.replace('Name', ' name')}`}
                     placeholderTextColor="#aaa"
                     onFocus={() => setFocusedField(key)}
                     onBlur={() => setFocusedField(null)}
@@ -360,7 +488,7 @@ const ProfileScreen = ({ navigation }) => {
             }}
           >
             <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 12 }}>
-              {formData.gender}
+              {formData.gender || 'Select gender'}
             </Text>
           </TouchableOpacity>
 
@@ -374,9 +502,25 @@ const ProfileScreen = ({ navigation }) => {
               }
             }}
           >
-            <Text style={styles.inputText}>{formatDate(selectedDate)}</Text>
+            <Text style={styles.inputText}>{formatDate(formData.birthDate)}</Text>
             <Ionicons name="calendar" size={20} color="green" />
           </TouchableOpacity>
+
+          <Text style={styles.label}>Phone Number</Text>
+          <TextInput
+            style={getInputStyle('phone')}
+            value={formData.phone}
+            onChangeText={(text) => setFormData({ ...formData, phone: text })}
+            editable={isEditable}
+            placeholder="Enter phone number"
+            placeholderTextColor="#aaa"
+            keyboardType="phone-pad"
+            onFocus={() => setFocusedField('phone')}
+            onBlur={() => setFocusedField(null)}
+          />
+          {validationErrors.phone && (
+            <Text style={styles.errorText}>{validationErrors.phone}</Text>
+          )}
         </View>
 
         <Text style={styles.otherInfoText}>Account Information</Text>
@@ -404,6 +548,8 @@ const ProfileScreen = ({ navigation }) => {
               onChangeText={(text) => setFormData({ ...formData, password: text })}
               secureTextEntry={!passwordVisible}
               editable={isEditable}
+              placeholder="Leave empty to keep current"
+              placeholderTextColor="#aaa"
               onFocus={() => setFocusedField('password')}
               onBlur={() => setFocusedField(null)}
             />
@@ -419,48 +565,69 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={styles.otherInfoText}>Billing Addresses</Text>
 
         <View style={{ marginHorizontal: 10 }}>
-        <ScrollView
-            showsVerticalScrollIndicator={false}
-        >
-        {addresses.map((item, index) => (
-          <View key={item.id}>
-            <TouchableOpacity 
-              style={styles.addressContainer}
-              onPress={() => handleAddressSelect(item)}
-            >
-              <View style={styles.addressHeader}>
-                <Text style={styles.addressType}>{item.type}</Text>
-                {item.isDefault && (
-                  <View style={styles.defaultBadge}>
-                    <Text style={styles.defaultBadgeText}>Default</Text>
+          {loadingAddresses ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#9DCD5A" />
+            </View>
+          ) : addresses.length === 0 ? (
+            <View style={styles.noAddressContainer}>
+              <Text style={styles.noAddressText}>No billing addresses saved</Text>
+              <TouchableOpacity 
+                style={styles.addAddressButton}
+                onPress={handleAddAddress}
+              >
+                <Text style={styles.addAddressButtonText}>Add New Billing Address</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {addresses.map((item, index) => (
+                  <View key={item.id}>
+                    <TouchableOpacity 
+                      style={styles.addressContainer}
+                      onPress={() => handleAddressSelect(item)}
+                    >
+                      <View style={styles.addressHeader}>
+                        <Text style={styles.addressType}>{item.type}</Text>
+                        {item.isDefault && (
+                          <View style={styles.defaultBadge}>
+                            <Text style={styles.defaultBadgeText}>Default</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.addressText}>{getAddressDisplay(item)}</Text>
+                    </TouchableOpacity>
+                    
+                    {index < addresses.length - 1 && (
+                      <View style={styles.addressSeparator} />
+                    )}
                   </View>
-                )}
-              </View>
-              <Text style={styles.addressText}>{getAddressDisplay(item)}</Text>
-            </TouchableOpacity>
-            
-            {/* Render separator except after last item */}
-            {index < addresses.length - 1 && (
-              <View style={styles.addressSeparator} />
-            )}
-          </View>
-        ))}
-      </ScrollView>
-
-          <TouchableOpacity onPress={handleAddAddress}>
-            <Text style={styles.addAddressText}>
-              Add New Billing Address +
-            </Text>
-          </TouchableOpacity>
-
+                ))}
+              </ScrollView>
+              
+              <TouchableOpacity 
+                style={styles.addAddressTextContainer}
+                onPress={handleAddAddress}
+              >
+                <Text style={styles.addAddressText}>
+                  Add New Billing Address +
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         <TouchableOpacity
           style={[styles.saveButton, {marginBottom: 15}, { opacity: hasChanges ? 1 : 0.5 }]}
-          disabled={!hasChanges}
+          disabled={!hasChanges || saving} // Disable while saving
           onPress={handleSave}
         >
-          <Text style={styles.saveButtonText}>Save Changes</Text>
+          {saving ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          )}
         </TouchableOpacity>
 
         {/* Gender Selection Modal */}
@@ -532,10 +699,10 @@ const ProfileScreen = ({ navigation }) => {
               <Text style={styles.modalTitle}>Select Birthday</Text>
               
               <Calendar
-                current={format(selectedDate, 'yyyy-MM-dd')}
+                current={formData.birthDate ? format(formData.birthDate, 'yyyy-MM-dd') : ''}
                 onDayPress={handleDateSelect}
                 markedDates={{
-                  [format(selectedDate, 'yyyy-MM-dd')]: {selected: true}
+                  [formData.birthDate ? format(formData.birthDate, 'yyyy-MM-dd') : '']: {selected: true}
                 }}
                 theme={{
                   backgroundColor: '#ffffff',
@@ -571,6 +738,7 @@ const ProfileScreen = ({ navigation }) => {
           </View>
         </Modal>
 
+        {/* Address Modal */}
         <Modal
           visible={showAddressModal}
           transparent={true}
@@ -612,7 +780,6 @@ const ProfileScreen = ({ navigation }) => {
                   value={newAddress.province}
                   onChangeText={(text) => setNewAddress({...newAddress, province: text})}
                   placeholder="Enter Province"
-                  keyboardType="text"
                 />
 
                 <Text style={styles.label}>City/Municipality</Text>
@@ -621,15 +788,14 @@ const ProfileScreen = ({ navigation }) => {
                   value={newAddress.city}
                   onChangeText={(text) => setNewAddress({...newAddress, city: text})}
                   placeholder="Enter City"
-                  keyboardType="text"
                 />
+
                 <Text style={styles.label}>Barangay</Text>
                 <TextInput
                   style={styles.inputBox}
                   value={newAddress.barangay}
                   onChangeText={(text) => setNewAddress({...newAddress, barangay: text})}
                   placeholder="Enter Baranggay"
-                  keyboardType="text"
                 />
 
                 <Text style={styles.label}>Postal Code</Text>
@@ -720,6 +886,7 @@ const ProfileScreen = ({ navigation }) => {
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
