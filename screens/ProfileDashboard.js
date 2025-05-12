@@ -296,7 +296,7 @@ export default function DashboardScreen({navigation, route}) {
               label="My Wallet" 
               onPress={() => navigation.navigate('WalletScreen')} 
             />
-            <Action icon="credit-card" label="My Card" />
+            <Action icon="barn" label="My Barn" />
             <Action icon="receipt" label="Orders" />
             <Action icon="history" label="History" />
             <Action icon="star-outline" label="Rate It" />
