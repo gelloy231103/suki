@@ -40,6 +40,7 @@ import ProductList from './screens/ProductList.js';
 import AddProductScreen from './screens/AddProductScreen.js';
 import CartScreen from './screens/CartScreen.js';
 import ProductsScreen from './screens/ProductsScreen.js';
+import ListofProduct from './screens/ListofProduct.js';
 
 const Stack = createStackNavigator();
 
@@ -211,6 +212,11 @@ const App = () => {
             <Stack.Screen
             name="ProductsScreen"
             component={ProductsScreen}
+            options={{ headerShown: false }}
+            />
+            <Stack.Screen
+            name="ListofProduct"
+            component={ListofProduct}
             options={{ headerShown: false }}
             />
           </Stack.Navigator>
