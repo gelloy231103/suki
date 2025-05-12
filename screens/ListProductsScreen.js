@@ -253,27 +253,24 @@ const styles = StyleSheet.create({
     color: '#403F3F',
   },
   categoriesContainer: {
-    paddingHorizontal: 8,
-    paddingVertical: 12,
+    paddingHorizontal: 15,
   },
   categoryButton: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 16,
     backgroundColor: '#EEE',
     marginRight: 12,
-    height: 50,
     justifyContent: 'center', 
     alignItems: 'center',   
-    marginTop: -10,
-    marginBottom: 5,
   },
   activeCategoryButton: {
     backgroundColor: '#9DCD5A',
   },
   categoryText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
+    backgroundColor: 'red'
   },
   activeCategoryText: {
     color: '#FFF',
@@ -314,8 +311,8 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   productImage: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     borderRadius: 12,
     marginRight: 12,
   },

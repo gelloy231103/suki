@@ -32,6 +32,11 @@ import { AuthProvider } from './context/AuthContext';
 import AddCardScreen from './screens/AddCardScreen';
 import OnBoarding from './screens/OnBoarding';
 import MainTab from './navigation/MainTab';
+import FarmDashboard from './screens/FarmDashboard';
+import EditFarmProfile from './screens/EditFarmProfile.js'
+import ProductDetails from './screens/productDetails.js';
+import ProductList from './screens/ProductList.js';
+import AddProductScreen from './screens/AddProductScreen.js';
 
 const Stack = createStackNavigator();
 
@@ -74,7 +79,7 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
-            initialRouteName="LandingScreen"
+            initialRouteName="AddProductScreen"
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
@@ -159,6 +164,31 @@ const App = () => {
               name="AddCardScreen"
               component={AddCardScreen}
               options={{ headerShown: false }}
+            />
+            <Stack.Screen
+            name="FarmDashboard"
+            component={FarmDashboard}
+            options={{ headerShown: false }}
+            />
+            <Stack.Screen
+            name="EditFarmProfile"
+            component={EditFarmProfile}
+            options={{ headerShown: false }}
+            />
+            <Stack.Screen
+            name="ProductDetails"
+            component={ProductDetails}
+            options={{ headerShown: false }}
+            />
+            <Stack.Screen
+            name="ProductList"
+            component={ProductList}
+            options={{ headerShown: false }}
+            />
+            <Stack.Screen
+            name="AddProductScreen"
+            component={AddProductScreen}
+            options={{ headerShown: false }}
             />
           </Stack.Navigator>
         </NavigationContainer>

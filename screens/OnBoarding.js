@@ -135,6 +135,7 @@ const styles = StyleSheet.create({
     color: '#403F3F',
     textAlign: 'center',
     marginBottom: 16,
+    fontFamily: 'Poppins', 
   },
   description: {
     fontSize: 16,
