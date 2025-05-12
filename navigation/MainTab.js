@@ -19,6 +19,7 @@ const MainTab = () => (
       tabBarStyle: {
         height: 70,
         paddingBottom: 5,
+        paddingTop: 5,
         borderTopWidth: 1,
         borderTopColor: '#EEE',
         elevation: 10,
