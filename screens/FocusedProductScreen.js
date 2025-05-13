@@ -19,7 +19,15 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { doc, getDoc } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc, 
+  collection, 
+  getDocs,
+  query,
+  where,
+  writeBatch 
+} from 'firebase/firestore';  // Add these imports
 import { db, auth } from '../config/firebase';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,6 +47,8 @@ const FocusedProductScreen = () => {
   const [deliveryDate, setDeliveryDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [user, setUser] = useState(null);
+  const [userAddresses, setUserAddresses] = useState([]);
+  const [defaultAddress, setDefaultAddress] = useState(null);
   const scaleValue = new Animated.Value(1);
 
   // Get product and farm data from Firebase
@@ -89,12 +99,28 @@ const FocusedProductScreen = () => {
         const userId = auth.currentUser?.uid;
         if (!userId) return;
 
+        // Fetch user data
         const userRef = doc(db, 'users', userId);
         const userSnap = await getDoc(userRef);
         
         if (userSnap.exists()) {
           setUser(userSnap.data());
         }
+
+        // Fetch addresses subcollection
+        const addressesRef = collection(db, 'users', userId, 'addresses');
+        const addressesSnap = await getDocs(addressesRef);
+        
+        const addressesData = [];
+        addressesSnap.forEach(doc => {
+          const address = { id: doc.id, ...doc.data() };
+          addressesData.push(address);
+          if (address.isDefault) {
+            setDefaultAddress(address);
+          }
+        });
+        
+        setUserAddresses(addressesData);
       } catch (error) {
         console.error('Error fetching user data:', error);
       }
@@ -390,13 +416,28 @@ const FocusedProductScreen = () => {
                 </Text>
               </View>
               {deliveryOption !== 'pickup' && (
-                <View style={styles.infoRow}>
-                  <Icon name="home" size={18} color="#9DCD5A" />
-                  <Text style={styles.infoText}>
-                    {user?.addresses ? `${user.addresses.street}, ${user.addresses.city}, ${user.addresses.province}` : 'No address provided'}
-                  </Text>
-                </View>
-              )}
+              <View>
+                <Text style={styles.addressTitle}>Delivery Address:</Text>
+                {defaultAddress ? (
+                  <View style={styles.addressContainer}>
+                    <Icon name="location-on" size={18} color="#9DCD5A" />
+                    <View style={styles.addressTextContainer}>
+                      <Text style={styles.addressText}>
+                        {defaultAddress.street}, {defaultAddress.barangay}
+                      </Text>
+                      <Text style={styles.addressText}>
+                        {defaultAddress.city}, {defaultAddress.province} {defaultAddress.postalCode}
+                      </Text>
+                      <Text style={styles.addressType}>
+                        ({defaultAddress.type})
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.infoText}>No address provided</Text>
+                )}
+              </View>
+            )}
             </View>
           </ScrollView>
           
@@ -1186,6 +1227,33 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
+  },
+  addressTitle: {
+  fontSize: 14,
+  fontFamily: 'Poppins-SemiBold',
+  color: '#333',
+  marginBottom: 4,
+  marginTop: 8,
+},
+addressContainer: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  marginBottom: 8,
+  },
+  addressTextContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  addressText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#555',
+  },
+  addressType: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    color: '#888',
+    marginTop: 2,
   },
 });
 
