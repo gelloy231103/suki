@@ -26,6 +26,7 @@ const Login = ({navigation}) => {
     if (!email || !password) {
       alert('Please enter both email and password');
       return;
+      
     }
   
     setIsLoading(true);
@@ -54,10 +55,7 @@ const Login = ({navigation}) => {
         );
         {console.log(userData)}
         
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTab' }],
-        });
+        navigation.navigate('OnBoarding');
       } else {
         throw new Error("User profile not found in database");
       }

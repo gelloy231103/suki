@@ -7,14 +7,11 @@ import * as Font from 'expo-font';
 import AppLoading from 'expo-app-loading';
 import 'react-native-gesture-handler';
 
-
 import 'react-native-gesture-handler';
-
-
 
 // Screen imports
 import LoaderScreen from './screens/LoaderScreen';
-import ListProductsScreen from './screens/ListProductsScreen';
+import ListProductsScreen from './screens/ListProductsScreen'
 import FocusedProductScreen from './screens/FocusedProductScreen';
 import CheckOutScreen from './screens/CheckOutScreen';
 import Login from './screens/Login';
@@ -84,7 +81,7 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
-            initialRouteName="LandingScreen"
+            initialRouteName="AddProductScreen"
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
@@ -221,8 +218,8 @@ const App = () => {
             options={{ headerShown: false }}
             />
             <Stack.Screen
-            name="ListofProduct"
-            component={ListofProduct}
+            name="ListOfProducts"
+            component={ListOfProducts}
             options={{ headerShown: false }}
             />
           </Stack.Navigator>
