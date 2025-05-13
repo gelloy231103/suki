@@ -85,7 +85,7 @@ export default function FarmDashboardScreen({ navigation }) {
           onPress={() => navigation.navigate('ProductsScreen', { someParam: 'value' })}
           />
           <Action icon="cube-outline" label="Fulfillment" 
-          onPress={() => navigation.navigate('OrdermanagementScreen', { OrdermanagementScreen: 'value' })}
+          onPress={() => navigation.navigate('OrderManagementScreen', { OrdermanagementScreen: 'value' })}
           />
           <Action icon="history" label="History" />
           <Action icon="home" label="Home" />

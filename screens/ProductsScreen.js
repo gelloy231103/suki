@@ -8,8 +8,7 @@ import {
   Image, 
   RefreshControl,
   ActivityIndicator,
-  SafeAreaView,
-  TextInput
+  Animated
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -23,22 +22,22 @@ const ProductsScreen = () => {
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const fadeAnim = useState(new Animated.Value(0))[0];
 
-  // Fetch all products from Firestore (removed farmId filter)
+  const currentFarmId = "farm456";
+
   useEffect(() => {
     const fetchProducts = () => {
       setLoading(true);
-      
-      // Query for all products (not drafts)
       const productsQuery = query(
         collection(db, 'products'),
+        where('farmId', '==', currentFarmId),
         where('status', '!=', 'draft')
       );
       
-      // Query for drafts
       const draftsQuery = query(
         collection(db, 'products'),
+        where('farmId', '==', currentFarmId),
         where('status', '==', 'draft')
       );
 
@@ -46,21 +45,26 @@ const ProductsScreen = () => {
         const productsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          formattedPrice: `₱${doc.data().price.toFixed(2)}`,
-          discountPrice: doc.data().percentage 
-            ? `₱${(doc.data().price * (1 - doc.data().percentage/100)).toFixed(2)}`
+          formattedPrice: `₱${doc.data().price.toFixed(2)} / ${doc.data().unit.toLowerCase()}`,
+          discountPrice: doc.data().discount?.percentage 
+            ? `₱${(doc.data().price * (1 - doc.data().discount.percentage/100)).toFixed(2)}`
             : null
         }));
         setProducts(productsData);
         setLoading(false);
         setRefreshing(false);
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true
+        }).start();
       });
 
       const unsubscribeDrafts = onSnapshot(draftsQuery, (snapshot) => {
         const draftsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          formattedPrice: `₱${doc.data().price.toFixed(2)}`
+          formattedPrice: `₱${doc.data().price.toFixed(2)} / ${doc.data().unit.toLowerCase()}`
         }));
         setDrafts(draftsData);
       });
@@ -76,95 +80,79 @@ const ProductsScreen = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // The useEffect will automatically refetch when refreshing changes
   };
 
-  // Filter products based on search query
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredDrafts = drafts.filter(draft => 
-    draft.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    draft.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    draft.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const renderProductItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.productContainer}
-      onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
-    >
-      <View style={styles.productHeader}>
-        <View style={styles.productInfo}>
-          {item.images?.length > 0 ? (
-            <Image source={{ uri: item.images[0] }} style={styles.productImage} />
-          ) : (
-            <View style={[styles.productImage, styles.emptyImage]}>
-              <Ionicons name="image" size={24} color="#9DCD5A" />
-            </View>
-          )}
-          <View style={styles.productTextContainer}>
-            <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-            <Text style={styles.productCategory}>{item.category}</Text>
-            {item.isFeatured && (
-              <View style={styles.featuredTag}>
-                <Text style={styles.featuredText}>Featured</Text>
+    <Animated.View style={{ opacity: fadeAnim }}>
+      <TouchableOpacity 
+        style={styles.productContainer}
+        onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
+        activeOpacity={0.9}
+      >
+        <View style={styles.productHeader}>
+          <View style={styles.productInfo}>
+            {item.images?.length > 0 ? (
+              <Image 
+                source={{ uri: item.images[0] }} 
+                style={styles.productImage} 
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.productImage, styles.emptyImage]}>
+                <Ionicons name="image" size={24} color="#9DCD5A" />
               </View>
             )}
-          </View>
-        </View>
-        <View style={styles.statusContainer}>
-          <View style={[
-            styles.statusBadge,
-            item.status === 'available' && styles.statusAvailable,
-            item.status === 'sold-out' && styles.statusSoldOut,
-            item.status === 'seasonal' && styles.statusSeasonal,
-          ]}>
-            <Text style={styles.statusText}>
-              {item.status === 'available' ? 'In Stock' : 
-               item.status === 'sold-out' ? 'Sold Out' : 'Seasonal'}
-            </Text>
-          </View>
-          <TouchableOpacity>
-            <MaterialIcons name="more-vert" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
-      </View>
-      
-      <View style={styles.priceContainer}>
-        {item.percentage > 0 ? (
-          <>
-            <Text style={styles.originalPrice}>{item.formattedPrice}</Text>
-            <Text style={styles.discountedPrice}>{item.discountPrice}</Text>
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>{item.percentage}% OFF</Text>
+            <View style={styles.productTextContainer}>
+              <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.productCategory}>{item.category}</Text>
+              <View style={styles.priceContainer}>
+                <Text style={styles.priceText}>{item.formattedPrice}</Text>
+                {item.discount?.percentage > 0 && (
+                  <Text style={styles.discountPriceText}>
+                    {item.discountPrice} / {item.unit.toLowerCase()}
+                  </Text>
+                )}
+              </View>
             </View>
-          </>
-        ) : (
-          <Text style={styles.productPrice}>{item.formattedPrice}</Text>
+          </View>
+          <View style={styles.statusContainer}>
+            <View style={[
+              styles.statusBadge,
+              item.status === 'available' && styles.statusAvailable,
+              item.status === 'sold-out' && styles.statusSoldOut,
+              item.status === 'seasonal' && styles.statusSeasonal,
+            ]}>
+              <Text style={styles.statusText}>
+                {item.status === 'available' ? 'In Stock' : 
+                 item.status === 'sold-out' ? 'Sold Out' : 'Seasonal'}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.moreButton}>
+              <MaterialIcons name="more-vert" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        <View style={styles.stockContainer}>
+          <View style={styles.stockInfo}>
+            <Text style={styles.stockLabel}>Available Stock</Text>
+            <Text style={styles.stockValue}>{item.stock} {item.unit.toLowerCase()}</Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { 
+              width: `${Math.min(100, (item.stock / (item.stock + 10)) * 100)}%`,
+              backgroundColor: item.status === 'available' ? '#9DCD5A' : '#FF6B6B'
+            }]} />
+          </View>
+        </View>
+        
+        {item.discount?.percentage > 0 && (
+          <View style={styles.discountTag}>
+            <Text style={styles.discountTagText}>{item.discount.percentage}% OFF</Text>
+          </View>
         )}
-      </View>
-      
-      <View style={styles.detailsContainer}>
-        <View style={styles.detailItem}>
-          <Ionicons name="pricetag" size={16} color="#9DCD5A" />
-          <Text style={styles.detailValue}>{item.unit || 'kg'}</Text>
-        </View>
-        
-        <View style={styles.detailItem}>
-          <Ionicons name="cube" size={16} color="#9DCD5A" />
-          <Text style={styles.detailValue}>{item.stock} available</Text>
-        </View>
-        
-        <View style={styles.detailItem}>
-          <Ionicons name="cart" size={16} color="#9DCD5A" />
-          <Text style={styles.detailValue}>Min: {item.minimumOrder || 1}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 
   if (loading && !refreshing) {
@@ -176,62 +164,33 @@ const ProductsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {/* Modern Header with Back Button */}
+    <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.navigate('FarmDashboard')}
-        >
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>My Products</Text>
-        <View style={styles.headerRight} />
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search products..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery ? (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close" size={20} color="#999" />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'products' && styles.activeTab]}
-          onPress={() => setActiveTab('products')}
-        >
-          <Text style={[styles.tabText, activeTab === 'products' && styles.activeTabText]}>
-            Products ({products.length})
-          </Text>
-          {activeTab === 'products' && <View style={styles.activeTabIndicator} />}
-        </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'drafts' && styles.activeTab]}
-          onPress={() => setActiveTab('drafts')}
-        >
-          <Text style={[styles.tabText, activeTab === 'drafts' && styles.activeTabText]}>
-            Drafts ({drafts.length})
-          </Text>
-          {activeTab === 'drafts' && <View style={styles.activeTabIndicator} />}
-        </TouchableOpacity>
+        <View style={styles.tabContainer}>
+          <TouchableOpacity 
+            style={[styles.tabButton, activeTab === 'products' && styles.activeTab]}
+            onPress={() => setActiveTab('products')}
+          >
+            <Text style={[styles.tabText, activeTab === 'products' && styles.activeTabText]}>
+              Products ({products.length})
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.tabButton, activeTab === 'drafts' && styles.activeTab]}
+            onPress={() => setActiveTab('drafts')}
+          >
+            <Text style={[styles.tabText, activeTab === 'drafts' && styles.activeTabText]}>
+              Drafts ({drafts.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      {/* Product List */}
+      
       <FlatList
-        data={activeTab === 'products' ? filteredProducts : filteredDrafts}
+        data={activeTab === 'products' ? products : drafts}
         renderItem={renderProductItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
@@ -239,6 +198,7 @@ const ProductsScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
+            colors={['#9DCD5A']}
             tintColor="#9DCD5A"
           />
         }
@@ -247,130 +207,97 @@ const ProductsScreen = () => {
             <Ionicons name="leaf-outline" size={48} color="#9DCD5A" />
             <Text style={styles.emptyText}>
               {activeTab === 'products' 
-                ? 'No products found' 
+                ? 'No products available' 
                 : 'No drafts saved'}
             </Text>
             <Text style={styles.emptySubtext}>
               {activeTab === 'products' 
-                ? searchQuery ? 'Try a different search' : 'Add your first product to get started'
+                ? 'Add your first product to get started' 
                 : 'Save products as drafts to continue later'}
             </Text>
           </View>
         }
       />
       
-      {/* Add Product Button */}
       <TouchableOpacity 
         style={styles.addButton}
         onPress={() => navigation.navigate('AddProductScreen')}
+        activeOpacity={0.8}
       >
         <Ionicons name="add" size={28} color="white" />
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F9F9F9',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#F9F9F9',
   },
-  // Modern Header Styles
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    paddingTop: 8,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
-  },
-  headerRight: {
-    width: 40,
-  },
-  // Search Bar
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    margin: 16,
-    height: 48,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: '100%',
-    fontSize: 16,
-    color: '#333',
-  },
-  // Tab Navigation
-  tabContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  activeTab: {
-    // Styles applied when tab is active
-  },
-  tabText: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Medium',
-    color: '#888',
-  },
-  activeTabText: {
-    color: '#333',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  activeTabIndicator: {
-    position: 'absolute',
-    bottom: -1,
-    height: 2,
-    width: '50%',
-    backgroundColor: '#9DCD5A',
-  },
-  // Product List
-  listContent: {
-    padding: 16,
-    paddingBottom: 80,
-  },
-  // Product Card
-  productContainer: {
+    padding: 24,
+    paddingBottom: 16,
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 26,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#2C3E50',
+    marginBottom: 24,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 12,
+    overflow: 'hidden',
+    height: 48,
+  },
+  tabButton: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeTab: {
+    backgroundColor: '#9DCD5A',
+  },
+  tabText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: '#7F8C8D',
+  },
+  activeTabText: {
+    color: 'white',
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 80,
+  },
+  productContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
   },
   productHeader: {
     flexDirection: 'row',
@@ -383,17 +310,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   productImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 12,
-    backgroundColor: '#f8f9fa',
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    marginRight: 16,
+    backgroundColor: '#F5F5F5',
   },
   emptyImage: {
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#EAEAEA',
   },
   productTextContainer: {
     flex: 1,
@@ -401,103 +328,98 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
-    color: '#333',
+    color: '#2C3E50',
     marginBottom: 4,
   },
   productCategory: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#9DCD5A',
     fontFamily: 'Poppins-Medium',
+    marginBottom: 8,
   },
-  featuredTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#e8f5e9',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+  priceContainer: {
     marginTop: 4,
   },
-  featuredText: {
+  priceText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#2C3E50',
+  },
+  discountPriceText: {
     fontSize: 12,
+    color: '#E74C3C',
     fontFamily: 'Poppins-Medium',
-    color: '#2e7d32',
+    marginTop: 2,
   },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   statusBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
     marginRight: 8,
   },
   statusAvailable: {
-    backgroundColor: '#e8f5e9',
+    backgroundColor: 'rgba(157, 205, 90, 0.2)',
   },
   statusSoldOut: {
-    backgroundColor: '#ffebee',
+    backgroundColor: 'rgba(231, 76, 60, 0.2)',
   },
   statusSeasonal: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: 'rgba(52, 152, 219, 0.2)',
   },
   statusText: {
     fontSize: 12,
     fontFamily: 'Poppins-Medium',
   },
-  // Price Section
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+  moreButton: {
+    padding: 4,
   },
-  productPrice: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
+  stockContainer: {
+    marginTop: 12,
   },
-  originalPrice: {
-    fontSize: 14,
-    color: '#999',
-    textDecorationLine: 'line-through',
-    marginRight: 8,
-  },
-  discountedPrice: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#9DCD5A',
-    marginRight: 8,
-  },
-  discountBadge: {
-    backgroundColor: '#fff8e1',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  discountText: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Medium',
-    color: '#ff8f00',
-  },
-  // Details Section
-  detailsContainer: {
+  stockInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f5f5f5',
+    marginBottom: 6,
   },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  stockLabel: {
+    fontSize: 12,
+    color: '#7F8C8D',
+    fontFamily: 'Poppins-Regular',
   },
-  detailValue: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-    color: '#666',
-    marginLeft: 4,
+  stockValue: {
+    fontSize: 12,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#2C3E50',
   },
-  // Empty State
+  progressBar: {
+    height: 6,
+    backgroundColor: '#ECF0F1',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  discountTag: {
+    position: 'absolute',
+    top: 16,
+    right: -30,
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 2,
+    paddingHorizontal: 30,
+    transform: [{ rotate: '45deg' }],
+  },
+  discountTagText: {
+    fontSize: 10,
+    fontFamily: 'Poppins-SemiBold',
+    color: 'white',
+    textAlign: 'center',
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -507,24 +429,24 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
-    color: '#333',
+    color: '#2C3E50',
     marginTop: 16,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#888',
+    color: '#95A5A6',
     marginTop: 8,
     textAlign: 'center',
+    fontFamily: 'Poppins-Regular',
   },
-  // Add Button
   addButton: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: 30,
+    right: 30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#9DCD5A',
     alignItems: 'center',
     justifyContent: 'center',
