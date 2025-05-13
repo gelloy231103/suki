@@ -1,6 +1,6 @@
-import { db } from '../config/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import React, { useState } from 'react';
+import { db, auth } from '../config/firebase';
+import { collection, addDoc, serverTimestamp, Timestamp, getDocs, query, where } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,13 +12,15 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
-  Switch
+  Switch,
+  Modal,
+  FlatList
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const AddProductScreen = ({ navigation }) => {
   // Product Information
@@ -54,8 +56,13 @@ const AddProductScreen = ({ navigation }) => {
   // Bundle Details
   const [bundleDetails, setBundleDetails] = useState({
     items: [],
-    discount: 0
+    discount: 0,
+    totalPrice: 0,
+    discountedPrice: 0
   });
+  const [showBundleModal, setShowBundleModal] = useState(false);
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [selectedProducts, setSelectedProducts] = useState([]);
   
   // Tags
   const [tags, setTags] = useState('');
@@ -65,8 +72,36 @@ const AddProductScreen = ({ navigation }) => {
   const [uploading, setUploading] = useState(false);
   
   // Replace these with actual values from your auth context
-  const currentUserId = "user123";
-  const currentFarmId = "farm456";
+  const currentUserId = auth.currentUser?.uid;
+  const currentFarmId = currentUserId; // Setting farmId equal to userId
+
+  // Fetch available products for bundling
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const q = query(collection(db, 'products'), where('farmId', '==', currentFarmId));
+        const querySnapshot = await getDocs(q);
+        const products = [];
+        querySnapshot.forEach((doc) => {
+          products.push({ id: doc.id, ...doc.data() });
+        });
+        setAvailableProducts(products);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      }
+    };
+
+    if (isBundled) {
+      fetchProducts();
+    }
+  }, [isBundled, currentFarmId]);
+
+  // Enable featured product if discount > 50
+  useEffect(() => {
+    if (parseInt(percentage) > 50) {
+      setIsFeatured(true);
+    }
+  }, [percentage]);
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -85,7 +120,7 @@ const AddProductScreen = ({ navigation }) => {
     }
   };
 
-  const uploadImageAsync = async (uri) => {
+  const uploadImageAsync = async (uri, index) => {
     const blob = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.onload = function() {
@@ -101,7 +136,7 @@ const AddProductScreen = ({ navigation }) => {
     });
 
     const storage = getStorage();
-    const storageRef = ref(storage, `products/${currentUserId}/${Date.now()}`);
+    const storageRef = ref(storage, `products/${currentUserId}/${Date.now()}_${index}.jpg`);
     await uploadBytes(storageRef, blob);
     blob.close();
     
@@ -129,6 +164,17 @@ const AddProductScreen = ({ navigation }) => {
       delivery: false,
       shipping: false
     });
+    setBundleDetails({
+      items: [],
+      discount: 0,
+      totalPrice: 0,
+      discountedPrice: 0
+    });
+  };
+
+  const generateProductId = () => {
+    const randomNum = Math.floor(10000 + Math.random() * 90000);
+    return `${currentUserId}_${randomNum}`;
   };
 
   const handleAddProduct = async () => {
@@ -137,29 +183,34 @@ const AddProductScreen = ({ navigation }) => {
       return;
     }
 
+    if (isBundled && bundleDetails.items.length === 0) {
+      Alert.alert('Error', 'Please select products to bundle');
+      return;
+    }
+
     setUploading(true);
 
     try {
-      // Upload images first
+      // Upload images first with incremental numbering
       const imageUrls = [];
-      for (const image of images) {
-        const url = await uploadImageAsync(image.uri);
+      for (let i = 0; i < images.length; i++) {
+        const url = await uploadImageAsync(images[i].uri, i + 1);
         imageUrls.push(url);
       }
 
       // Generate product ID
-      const now = new Date();
-      const productId = `${currentFarmId}_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(Math.floor(Math.random() * 10000)).padStart(4,'0')}`;
+      const productId = generateProductId();
 
       // Prepare product data
       const productData = {
         productId,
         farmId: currentFarmId,
+        userId: currentUserId, // Adding userId as well
         name,
         cropType,
         description,
         price: parseFloat(price),
-        unit: 'Kilogram', // Default unit
+        unit: 'Kilogram',
         stock: parseInt(stock),
         availableStock: parseInt(availableStock || stock),
         images: imageUrls,
@@ -171,7 +222,7 @@ const AddProductScreen = ({ navigation }) => {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         harvestDate: serverTimestamp(),
-        isFeatured,
+        isFeatured: isFeatured && parseInt(percentage) > 50,
         category,
         subcategory,
         deliveryOptions,
@@ -208,6 +259,77 @@ const AddProductScreen = ({ navigation }) => {
     }));
   };
 
+  const toggleProductSelection = (product) => {
+    setSelectedProducts(prev => {
+      const isSelected = prev.some(p => p.id === product.id);
+      if (isSelected) {
+        return prev.filter(p => p.id !== product.id);
+      } else {
+        if (prev.length < 5) { // Limit to 5 products in a bundle
+          return [...prev, product];
+        } else {
+          Alert.alert('Limit reached', 'You can select maximum 5 products in a bundle');
+          return prev;
+        }
+      }
+    });
+  };
+
+  const saveBundleDetails = () => {
+    const items = selectedProducts.map(product => ({
+      productId: product.id,
+      name: product.name,
+      quantity: 1, // Default quantity
+      price: product.price,
+      image: product.images[0] || null
+    }));
+
+    // Calculate total price and discounted price
+    const totalPrice = items.reduce((sum, item) => sum + item.price, 0);
+    const discountedPrice = totalPrice * (1 - bundleDetails.discount / 100);
+
+    setBundleDetails({
+      ...bundleDetails,
+      items,
+      totalPrice,
+      discountedPrice
+    });
+
+    setShowBundleModal(false);
+  };
+
+  const updateBundleItemQuantity = (productId, quantity) => {
+    setBundleDetails(prev => ({
+      ...prev,
+      items: prev.items.map(item => 
+        item.productId === productId ? { ...item, quantity } : item
+      )
+    }));
+  };
+
+  const renderProductItem = ({ item }) => (
+    <TouchableOpacity 
+      style={[
+        styles.productItem,
+        selectedProducts.some(p => p.id === item.id) && styles.selectedProductItem
+      ]}
+      onPress={() => toggleProductSelection(item)}
+    >
+      <Image 
+        source={{ uri: item.images[0] || 'https://via.placeholder.com/150' }} 
+        style={styles.productImage} 
+      />
+      <View style={styles.productInfo}>
+        <Text style={styles.productName}>{item.name}</Text>
+        <Text style={styles.productPrice}>₱{item.price.toFixed(2)}</Text>
+        <Text style={styles.productStock}>Stock: {item.availableStock || item.stock}</Text>
+      </View>
+      {selectedProducts.some(p => p.id === item.id) && (
+        <MaterialCommunityIcons name="check-circle" size={24} color="#8CC63F" />
+      )}
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       {/* Header with back button */}
@@ -242,13 +364,20 @@ const AddProductScreen = ({ navigation }) => {
               <TouchableOpacity 
                 key={index} 
                 style={styles.smallImageBox} 
-                onPress={pickImage}
+                onPress={() => {
+                  if (index === 0 || images[index - 1]?.uri) {
+                    pickImage();
+                  }
+                }}
+                disabled={index > 0 && !images[index - 1]?.uri}
               >
                 {images[index + 1]?.uri ? (
                   <Image source={{ uri: images[index + 1].uri }} style={styles.smallImagePreview} />
                 ) : (
                   <View style={styles.addSmallImageContainer}>
-                    <Ionicons name="add" size={20} color="#9DCD5A" />
+                    {index === 0 || images[index - 1]?.uri ? (
+                      <Ionicons name="add" size={20} color="#9DCD5A" />
+                    ) : null}
                   </View>
                 )}
               </TouchableOpacity>
@@ -465,6 +594,7 @@ const AddProductScreen = ({ navigation }) => {
             <Switch
               value={isFeatured}
               onValueChange={setIsFeatured}
+              disabled={parseInt(percentage) <= 50}
               thumbColor={isFeatured ? '#9DCD5A' : '#f4f3f4'}
               trackColor={{ false: '#767577', true: '#9DCD5A' }}
             />
@@ -474,11 +604,70 @@ const AddProductScreen = ({ navigation }) => {
             <Text style={styles.switchLabel}>Bundled Product</Text>
             <Switch
               value={isBundled}
-              onValueChange={setIsBundled}
+              onValueChange={(value) => {
+                setIsBundled(value);
+                if (!value) {
+                  setBundleDetails({
+                    items: [],
+                    discount: 0,
+                    totalPrice: 0,
+                    discountedPrice: 0
+                  });
+                }
+              }}
+              disabled={availableProducts.length === 0}
               thumbColor={isBundled ? '#9DCD5A' : '#f4f3f4'}
               trackColor={{ false: '#767577', true: '#9DCD5A' }}
             />
           </View>
+
+          {isBundled && (
+            <>
+              <TouchableOpacity 
+                style={styles.bundleButton}
+                onPress={() => setShowBundleModal(true)}
+              >
+                <Text style={styles.bundleButtonText}>
+                  {bundleDetails.items.length > 0 
+                    ? `Edit Bundle (${bundleDetails.items.length} items)`
+                    : 'Select Products to Bundle'}
+                </Text>
+              </TouchableOpacity>
+
+              {bundleDetails.items.length > 0 && (
+                <View style={styles.bundleSummary}>
+                  <Text style={styles.bundleSummaryTitle}>Bundle Summary:</Text>
+                  <ScrollView style={styles.bundleItemsContainer}>
+                    {bundleDetails.items.map((item, index) => (
+                      <View key={index} style={styles.bundleItem}>
+                        <Image 
+                          source={{ uri: item.image || 'https://via.placeholder.com/150' }} 
+                          style={styles.bundleItemImage} 
+                        />
+                        <View style={styles.bundleItemDetails}>
+                          <Text style={styles.bundleItemName} numberOfLines={1}>
+                            {item.name}
+                          </Text>
+                          <Text style={styles.bundleItemPrice}>
+                            ₱{item.price.toFixed(2)} x {item.quantity}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </ScrollView>
+                  <View style={styles.bundleTotal}>
+                    <Text style={styles.bundleTotalText}>Subtotal: ₱{bundleDetails.totalPrice.toFixed(2)}</Text>
+                    <Text style={styles.bundleDiscountText}>
+                      Discount: {bundleDetails.discount}% (₱{(bundleDetails.totalPrice * (bundleDetails.discount / 100)).toFixed(2)})
+                    </Text>
+                    <Text style={styles.bundleFinalPrice}>
+                      Final Price: ₱{bundleDetails.discountedPrice.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </>
+          )}
         </View>
 
         {/* Submit Button */}
@@ -494,6 +683,61 @@ const AddProductScreen = ({ navigation }) => {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Bundle Products Modal */}
+      <Modal
+        visible={showBundleModal}
+        animationType="slide"
+        onRequestClose={() => setShowBundleModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowBundleModal(false)}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Select Products to Bundle</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <View style={styles.productListContainer}>
+            <FlatList
+              data={availableProducts}
+              renderItem={renderProductItem}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.productList}
+            />
+          </View>
+
+          {selectedProducts.length > 0 && (
+            <View style={styles.bundleControls}>
+              <View style={styles.discountInputContainer}>
+                <Text style={styles.discountLabel}>Bundle Discount %</Text>
+                <TextInput
+                  style={styles.discountInput}
+                  keyboardType="numeric"
+                  value={bundleDetails.discount.toString()}
+                  onChangeText={(text) => 
+                    setBundleDetails(prev => ({
+                      ...prev,
+                      discount: Math.min(100, Math.max(0, parseInt(text) || 0))
+                    }))
+                  }
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={styles.saveBundleButton}
+                onPress={saveBundleDetails}
+              >
+                <Text style={styles.saveBundleButtonText}>Save Bundle ({selectedProducts.length} items)</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -678,6 +922,161 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  bundleButton: {
+    backgroundColor: '#E8F5E9',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  bundleButtonText: {
+    color: '#8CC63F',
+    fontWeight: '600',
+  },
+  bundleSummary: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+  },
+  bundleItemsContainer: {
+    maxHeight: 200,
+    marginBottom: 10,
+  },
+  bundleSummaryTitle: {
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  bundleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+  },
+  bundleItemImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  bundleItemDetails: {
+    flex: 1,
+  },
+  bundleItemName: {
+    color: '#555',
+    fontWeight: '500',
+  },
+  bundleItemPrice: {
+    color: '#555',
+  },
+  bundleTotal: {
+    marginTop: 5,
+    paddingTop: 5,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+  },
+  bundleTotalText: {
+    fontWeight: '600',
+  },
+  bundleDiscountText: {
+    color: '#8CC63F',
+  },
+  bundleFinalPrice: {
+    fontWeight: '600',
+    color: '#009216',
+    fontSize: 16,
+    marginTop: 5,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+  },
+  productListContainer: {
+    flex: 1,
+  },
+  productList: {
+    padding: 16,
+  },
+  productItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    marginBottom: 8,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+  },
+  selectedProductItem: {
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#8CC63F',
+  },
+  productImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  productInfo: {
+    flex: 1,
+  },
+  productName: {
+    fontWeight: '500',
+  },
+  productPrice: {
+    color: '#009216',
+  },
+  productStock: {
+    fontSize: 12,
+    color: '#666',
+  },
+  bundleControls: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  discountInputContainer: {
+    marginBottom: 12,
+  },
+  discountLabel: {
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  discountInput: {
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  saveBundleButton: {
+    backgroundColor: '#9DCD5A',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveBundleButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { memo, useContext } from 'react';
+import React, { memo, useContext, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,18 @@ import {
   Image,
   TouchableOpacity,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
 import MapView, { Marker } from 'react-native-maps';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
+import Geocoder from 'react-native-geocoding';
+
+// Initialize Geocoder with your API key (Google Maps API)
+Geocoder.init('AIzaSyDYfZdROEjJR7qB31TM1t8Lm6pSc0twhPg', { language: 'en' });
 
 const { width } = Dimensions.get('window');
 
@@ -25,6 +32,77 @@ const productImages = [
 
 export default function FarmDashboardScreen({ navigation }) {
   const { userData } = useContext(AuthContext);
+  const [farmData, setFarmData] = useState(null);
+  const [products, setProducts] = useState([]); // New state for products
+  const [loading, setLoading] = useState(true);
+  const [coordinates, setCoordinates] = useState({
+    latitude: 14.5995,
+    longitude: 120.9842,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
+
+  useEffect(() => {
+    const fetchFarmData = async () => {
+      try {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
+
+        // Fetch farm data
+        const farmRef = doc(db, 'farms', userId);
+        const farmSnap = await getDoc(farmRef);
+
+        if (farmSnap.exists()) {
+          const data = farmSnap.data();
+          setFarmData(data);
+
+          // Fetch products where farmId matches current user's ID
+          const productsQuery = query(
+            collection(db, 'products'),
+            where('farmId', '==', userId)
+          );
+          const productsSnapshot = await getDocs(productsQuery);
+          const productsData = productsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setProducts(productsData);
+
+          // Geocode the address
+          if (data.farmAddress) {
+            const fullAddress = `${data.farmAddress.street}, ${data.farmAddress.barangay}, ${data.farmAddress.city}, ${data.farmAddress.province}, ${data.farmAddress.region}, ${data.farmAddress.postalCode}, Philippines`;
+            
+            try {
+              const response = await Geocoder.from(fullAddress);
+              const { lat, lng } = response.results[0].geometry.location;
+              setCoordinates({
+                latitude: lat,
+                longitude: lng,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              });
+            } catch (error) {
+              console.error('Geocoding error:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFarmData();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8CC63F" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -32,8 +110,11 @@ export default function FarmDashboardScreen({ navigation }) {
         {/* Green header section */}
         <View style={styles.greenHeader}>
           <View style={styles.headerTopRow}>
-            <Ionicons name="arrow-back" size={24} color="#fff" 
-            onPress={() => navigation.navigate('ProfileDashboard', { ProfileDashboard: 'value' })}
+            <Ionicons 
+              name="arrow-back" 
+              size={24} 
+              color="#fff" 
+              onPress={() => navigation.navigate('ProfileDashboard')}
             />
             <View style={styles.headerIcons}>
               <Ionicons name="chatbox-ellipses" size={24} color="#fff" />
@@ -45,11 +126,18 @@ export default function FarmDashboardScreen({ navigation }) {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileRow}>
-            <Image source={require('../assets/farm.png')} style={styles.avatar} />
+            <Image 
+              source={farmData?.farmImage ? { uri: farmData.farmImage } : require('../assets/farm.png')} 
+              style={styles.avatar} 
+            />
             <View style={styles.profileInfo}>
-              <Text style={styles.name}>{userData.firstName + " " + userData.lastName}</Text>
-              <Text style={styles.email}>{userData.email}</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('EditFarmProfile')}>
+              <Text style={styles.name}>{farmData?.farmName || 'My Farm'}</Text>
+              <Text style={styles.address}>
+                {farmData?.farmAddress ? 
+                  `${farmData.farmAddress.street}, ${farmData.farmAddress.barangay}, ${farmData.farmAddress.city}` : 
+                  'Address not set'}
+              </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('EditFarmProfile', { farmData })}>
                 <Text style={styles.editText}>Edit Farm Information</Text>
               </TouchableOpacity>
             </View>
@@ -60,14 +148,14 @@ export default function FarmDashboardScreen({ navigation }) {
                 <MaterialCommunityIcons name="wallet" size={24} color="#fff" style={styles.balanceIconGreen} />
                 <View style={styles.balanceTextBlock}>
                   <Text style={styles.balanceLabel}>Orders</Text>
-                  <Text style={styles.balanceValue}>P321</Text>
+                  <Text style={styles.balanceValue}>P{farmData?.ordersValue || '0'}</Text>
                 </View>
               </View>
               <View style={styles.balanceItem}>
                 <MaterialCommunityIcons name="currency-php" size={24} color="#8CC63F" style={styles.balanceIconWhite} />
                 <View style={styles.balanceTextBlock}>
                   <Text style={styles.balanceLabel}>Income</Text>
-                  <Text style={styles.balanceValue}>P4100</Text>
+                  <Text style={styles.balanceValue}>P{farmData?.income || '0'}</Text>
                 </View>
               </View>
             </View>
@@ -81,11 +169,15 @@ export default function FarmDashboardScreen({ navigation }) {
             label="My Income" 
             onPress={() => navigation.navigate('WalletScreen')} 
           />
-          <Action icon="fruit-grapes" label="Products"
-          onPress={() => navigation.navigate('ProductsScreen', { someParam: 'value' })}
+          <Action 
+            icon="fruit-grapes" 
+            label="Products"
+            onPress={() => navigation.navigate('ProductsScreen', { farmId: auth.currentUser?.uid })}
           />
-          <Action icon="cube-outline" label="Fulfillment" 
-          onPress={() => navigation.navigate('OrdermanagementScreen', { OrdermanagementScreen: 'value' })}
+          <Action 
+            icon="cube-outline" 
+            label="Fulfillment" 
+            onPress={() => navigation.navigate('OrdermanagementScreen')}
           />
           <Action icon="history" label="History" />
           <Action icon="home" label="Home" />
@@ -94,58 +186,55 @@ export default function FarmDashboardScreen({ navigation }) {
         <SectionHeader title="Your Farm Locator" />
         <MapView
           style={styles.map}
-          initialRegion={{
-            latitude: 37.78825,
-            longitude: -122.4324,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          }}
+          region={coordinates}
         >
           <Marker
-            coordinate={{ latitude: 37.78825, longitude: -122.4324 }}
-            title="Your Farm"
-            description="This is your farm location"
+            coordinate={{
+              latitude: coordinates.latitude,
+              longitude: coordinates.longitude
+            }}
+            title={farmData?.farmName || 'My Farm'}
+            description={farmData?.address ? 
+              `${farmData.address.street}, ${farmData.address.barangay}, ${farmData.address.city}` : 
+              'Farm location'}
           />
         </MapView>
 
         <SectionHeader title="Your Products" />
-        {[
-          {
-            name: 'Sweet Tomato',
-            desc: 'Sweet Tomato',
-            status: 'Stocks: 30kg',
-            icon: 'circle-edit-outline',
-          },
-          {
-            name: 'Magestic Potato',
-            desc: '1 Box of Magestic Potato from Garden',
-            status: 'Ready for pick up at Bernadette Farm',
-            icon: 'circle-edit-outline',
-          },
-          {
-            name: 'Sweet Tomato',
-            desc: '3kg of Sweet Tomato from Garden',
-            status: 'Now Harvesting...',
-            icon: 'circle-edit-outline',
-          }
-        ].map((item, idx) => (
+        {products.slice(0, 3).map((product, idx) => (
           <Pressable 
-            key={idx} 
+            key={product.id} 
             style={({ pressed }) => [
               styles.orderRow, 
               pressed && { opacity: 0.7 }
             ]}
+            onPress={() => navigation.navigate('ProductDetail', { product })}
           >
-            <Image source={productImages[idx]} style={styles.orderImg} />
+            <Image 
+              source={product.image ? { uri: product.image } : productImages[idx % productImages.length]} 
+              style={styles.orderImg} 
+            />
             <View style={styles.orderText}>
-              <Text style={styles.orderTitle}>{item.desc}</Text>
+              <Text style={styles.orderTitle}>{product.name}</Text>
               <Text style={styles.orderSubtitle}>
-                {item.status}
+                Stocks: {product.stock || '0'} {product.unit || 'kg'}
               </Text>
             </View>
-            <MaterialCommunityIcons name={item.icon} size={24} color="#8CC63F" />
+            <MaterialCommunityIcons name="circle-edit-outline" size={24} color="#8CC63F" />
           </Pressable>
         ))}
+
+        {products.length === 0 && (
+          <View style={styles.noProducts}>
+            <Text style={styles.noProductsText}>No products added yet</Text>
+            <TouchableOpacity 
+              style={styles.addProductButton}
+              onPress={() => navigation.navigate('AddProductScreen')}
+            >
+              <Text style={styles.addProductButtonText}>Add Your First Product</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -166,6 +255,11 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: '#f5f5f5' 
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   greenHeader: {
     height: 170,
@@ -221,10 +315,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     padding: 0,
   },
+  address: {
+    fontSize: 12,
+    color: 'gray',
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
+  },
   editText: { 
     color: '#08A647',     
     fontFamily: 'Poppins-Bold',
     fontSize: 12,
+    marginTop: 5,
   },
   balanceSection: {
     marginTop: 20,
@@ -321,10 +422,32 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular', 
   },
   map: {
-    width: 359,
+    width: '90%',
     height: 196,
     alignSelf: 'center',
     borderRadius: 10,
     marginBottom: 17,
+  },
+  noProducts: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  noProductsText: {
+    fontSize: 14,
+    color: 'gray',
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 10,
+  },
+  addProductButton: {
+    backgroundColor: '#8CC63F',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  addProductButtonText: {
+    color: 'white',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 14,
   },
 });
