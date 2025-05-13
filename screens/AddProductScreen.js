@@ -602,6 +602,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     borderWidth: 1,
     borderColor: '#eee',
+    height: 55,
   },
   textArea: {
     height: 100,

@@ -32,7 +32,9 @@ export default function FarmDashboardScreen({ navigation }) {
         {/* Green header section */}
         <View style={styles.greenHeader}>
           <View style={styles.headerTopRow}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color="#fff" 
+            onPress={() => navigation.navigate('ProfileDashboard', { ProfileDashboard: 'value' })}
+            />
             <View style={styles.headerIcons}>
               <Ionicons name="chatbox-ellipses" size={24} color="#fff" />
               <Ionicons name="notifications" size={24} color="#fff" />
@@ -79,8 +81,12 @@ export default function FarmDashboardScreen({ navigation }) {
             label="My Income" 
             onPress={() => navigation.navigate('WalletScreen')} 
           />
-          <Action icon="fruit-grapes" label="Products" />
-          <Action icon="cube-outline" label="Fulfillment" />
+          <Action icon="fruit-grapes" label="Products"
+          onPress={() => navigation.navigate('ProductsScreen', { someParam: 'value' })}
+          />
+          <Action icon="cube-outline" label="Fulfillment" 
+          onPress={() => navigation.navigate('OrdermanagementScreen', { OrdermanagementScreen: 'value' })}
+          />
           <Action icon="history" label="History" />
           <Action icon="home" label="Home" />
         </View>
