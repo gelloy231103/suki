@@ -93,9 +93,27 @@ const Payment = () => {
   setIsPaying(true);
   try {
     const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("User not authenticated");
+    
     const orderId = Date.now().toString();
+    const batch = writeBatch(db);
 
-    // Prepare the order data with fallback values
+    // 1. First verify product stock is available
+    if (order?.product?.id) {
+      const productRef = doc(db, 'products', order.product.id);
+      const productSnap = await getDoc(productRef);
+      
+      if (!productSnap.exists()) {
+        throw new Error("Product no longer available");
+      }
+      
+      const currentStock = productSnap.data().stock || 0;
+      if (currentStock < order.quantity) {
+        throw new Error(`Only ${currentStock} ${order.product.unit.toLowerCase()} available`);
+      }
+    }
+
+    // 2. Prepare order data
     const orderData = {
       discount: discount || 0,
       farmId: order?.product?.farmId || null,
@@ -110,67 +128,60 @@ const Payment = () => {
       paymentMethod: selectedMethod.type === 'wallet' ? 'Suki Cash' : selectedMethod.name,
       paymentStatus: 'paid',
       productName: order?.product?.name || 'Unknown Product',
-      productImage: order?.product?.imageUrl || null, // Provide fallback for image
-      // Add any other required fields with proper fallbacks
+      productImage: order?.product?.imageUrl || null,
     };
 
-    // Clean the data by removing undefined fields
-    const cleanData = (obj) => {
-      return Object.fromEntries(
-        Object.entries(obj)
-          .filter(([_, v]) => v !== undefined)
-          .map(([k, v]) => [k, v === null ? null : v])
-      );
-    };
-
-    const sanitizedOrderData = cleanData(orderData);
-
-    // Create a batch for atomic operations
-    const batch = writeBatch(db);
-
-    // 1. Create the order document in the main orders collection
+    // 3. Create order documents
     const mainOrderRef = doc(db, 'orders', orderId);
-    batch.set(mainOrderRef, sanitizedOrderData);
+    batch.set(mainOrderRef, orderData);
 
-    // 2. Create the order in the user's subcollection
     const userOrderRef = doc(db, 'users', userId, 'orders', orderId);
-    batch.set(userOrderRef, {
-      ...sanitizedOrderData,
-      // Include any additional user-specific fields
-    });
+    batch.set(userOrderRef, orderData);
 
-    // 3. Handle wallet payment if selected
+    // 4. Handle Wallet Payment
     if (selectedMethod.type === 'wallet') {
-      if (walletBalance < total) {
-        throw new Error("Insufficient wallet balance");
+      // Verify wallet balance first
+      const walletRef = doc(db, 'users', userId, 'wallet', 'balance');
+      const walletSnap = await getDoc(walletRef);
+      
+      if (!walletSnap.exists()) {
+        throw new Error("Wallet account not found");
       }
       
-      const walletRef = doc(db, 'users', userId, 'wallet', 'balance');
+      const currentBalance = walletSnap.data().currentBalance || 0;
+      if (currentBalance < total) {
+        throw new Error(`Insufficient Suki Cash balance. Available: ₱${currentBalance.toFixed(2)}`);
+      }
+
+      // Update wallet balance
       batch.update(walletRef, {
-        currentBalance: walletBalance - total,
+        currentBalance: increment(-total),
         updatedAt: new Date()
       });
 
-      const transactionRef = doc(collection(db, 'users', userId, 'wallet', 'transactions'));
-      batch.set(transactionRef, {
+      // Add transaction record (corrected path)
+      const transactionsRef = collection(db, 'users', userId, 'transactions');
+      const newTransactionRef = doc(transactionsRef);
+      batch.set(newTransactionRef, {
         amount: total,
         type: 'debit',
         description: `Payment for order #${orderId}`,
         createdAt: new Date(),
         orderId: orderId,
-        newBalance: walletBalance - total
+        newBalance: currentBalance - total,
+        status: 'completed'
       });
     }
 
-    // 4. Update product stock if needed
-    if (order?.product?.stock !== undefined) {
+    // 5. Update product stock
+    if (order?.product?.id) {
       const productRef = doc(db, 'products', order.product.id);
       batch.update(productRef, {
-        stock: order.product.stock - order.quantity
+        stock: increment(-order.quantity),
+        updatedAt: new Date()
       });
     }
 
-    // Commit all operations
     await batch.commit();
 
     navigation.replace('OrderConfirmation', { 

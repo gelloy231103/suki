@@ -3,15 +3,16 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TouchableOpacity, 
-  SafeAreaView, 
+  TouchableOpacity,  
   ScrollView,
   Animated,
   Easing
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
 import { MainTab } from '../navigation/MainTab';
+import { useNavigation, CommonActions, useRoute } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 const OrderConfirmation = () => {
   const navigation = useNavigation();
@@ -50,14 +51,6 @@ const OrderConfirmation = () => {
       setCountdown(countdown - 1);
     }, 1000);
 
-    if (countdown === 0) {
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'MainTab' }],
-        })
-      );
-    }
 
     return () => clearInterval(timer);
   }, [countdown, navigation]);
@@ -169,7 +162,7 @@ const OrderConfirmation = () => {
       <View style={styles.footer}>
         <TouchableOpacity 
           style={styles.secondaryButton}
-          onPress={() => navigation.navigate('MyOrders')}
+          onPress={() => navigation.navigate('CustomerTracking', { orderId: orderId })}
         >
           <Text style={styles.secondaryButtonText}>View My Orders</Text>
         </TouchableOpacity>
