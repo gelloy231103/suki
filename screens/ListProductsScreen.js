@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { collection, query, where, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { AuthContext } from '../context/AuthContext';
 
@@ -16,6 +16,27 @@ const ListProductsScreen = () => {
   const [priceFilter, setPriceFilter] = useState('lowest to high');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [farmNames, setFarmNames] = useState({});
+
+  // Fetch farm names
+  const fetchFarmName = async (farmId) => {
+    if (!farmId) return 'Local Farm';
+    if (farmNames[farmId]) return farmNames[farmId];
+    
+    try {
+      const farmRef = doc(db, 'farms', farmId);
+      const farmSnap = await getDoc(farmRef);
+      if (farmSnap.exists()) {
+        const farmName = farmSnap.data().farmName || 'Local Farm';
+        setFarmNames(prev => ({ ...prev, [farmId]: farmName }));
+        return farmName;
+      }
+      return 'Local Farm';
+    } catch (error) {
+      console.error("Error fetching farm name:", error);
+      return 'Local Farm';
+    }
+  };
 
   // Fetch products from Firestore
   useEffect(() => {
@@ -38,6 +59,9 @@ const ListProductsScreen = () => {
               isFavorite = favoriteSnap.exists();
             }
             
+            // Get farm name
+            const farmName = await fetchFarmName(product.farmId);
+            
             productsData.push({
               id: doc.id,
               ...product,
@@ -45,7 +69,8 @@ const ListProductsScreen = () => {
               imageUrl: product.images?.[0] || '',
               formattedPrice: `₱${product.price.toFixed(2)}${product.unit ? `/${product.unit}` : ''}`,
               rating: product.rating?.average || 0,
-              reviews: product.rating?.count || 0
+              reviews: product.rating?.count || 0,
+              farmName: farmName
             });
           }
           
@@ -102,7 +127,8 @@ const ListProductsScreen = () => {
       const queryLower = searchQuery.toLowerCase();
       result = result.filter(product => 
         product.name.toLowerCase().includes(queryLower) ||
-        (product.farm && product.farm.toLowerCase().includes(queryLower))
+        (product.farmName && product.farmName.toLowerCase().includes(queryLower)) ||
+        (product.category && product.category.toLowerCase().includes(queryLower))
       );
     }
     
@@ -177,7 +203,8 @@ const ListProductsScreen = () => {
   const renderItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.productCard}
-      onPress={() => navigation.navigate('FocusedProduct', { product: item })}
+      onPress={() => navigation.navigate('FocusedProduct', { productId: item.id })}
+      activeOpacity={0.8}
     >
       {item.imageUrl ? (
         <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
@@ -209,7 +236,7 @@ const ListProductsScreen = () => {
             numberOfLines={1}
             ellipsizeMode="tail"
           >
-            {item.farm || 'Local Farm'}
+            {item.farmName}
           </Text>
         </View>
       </View>
@@ -252,6 +279,7 @@ const ListProductsScreen = () => {
             placeholderTextColor="#999"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            returnKeyType="search"
           />
         </View>
       </View>
@@ -269,7 +297,13 @@ const ListProductsScreen = () => {
               styles.categoryButton,
               activeCategory === category && styles.activeCategoryButton,
             ]}
-            onPress={() => setActiveCategory(category)}
+            onPress={() => {
+              setActiveCategory(category);
+              // Scroll to top when category changes
+              if (this.flatListRef) {
+                this.flatListRef.scrollToOffset({ animated: true, offset: 0 });
+              }
+            }}
           >
             <Text
               style={[
@@ -294,7 +328,13 @@ const ListProductsScreen = () => {
         
         <TouchableOpacity 
           style={styles.filterItem}
-          onPress={() => setPriceFilter(prev => prev === 'lowest to high' ? 'highest to low' : 'lowest to high')}
+          onPress={() => {
+            setPriceFilter(prev => prev === 'lowest to high' ? 'highest to low' : 'lowest to high');
+            // Scroll to top when sort changes
+            if (this.flatListRef) {
+              this.flatListRef.scrollToOffset({ animated: true, offset: 0 });
+            }
+          }}
         >
           <Text style={styles.filterText}>Price: {priceFilter}</Text>
         </TouchableOpacity>
@@ -306,17 +346,18 @@ const ListProductsScreen = () => {
 
       {/* Product List */}
       <FlatList
-          data={filteredProducts}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.listContent, { flexGrow: 1, justifyContent: 'flex-start' }]} // Align items at the top
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No products found</Text>
-            </View>
-          }
-        />
+        ref={(ref) => { this.flatListRef = ref; }}
+        data={filteredProducts}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No products found</Text>
+          </View>
+        }
+      />
     </View>
   );
 };
@@ -425,6 +466,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    flexGrow: 1,
   },
   productCard: {
     flexDirection: 'row',
