@@ -39,6 +39,7 @@ import CartScreen from './screens/CartScreen.js';
 import ProductsScreen from './screens/ProductsScreen.js';
 import ListofProduct from './screens/ListProductsScreen.js';
 import BarnIntro from './screens/barnIntro.js';
+import OrderManagementScreen from './screens/OrderManagementScreen.js';
 
 const Stack = createStackNavigator();
 
@@ -81,7 +82,7 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
-            initialRouteName="OrderManagementScreen"
+            initialRouteName="LandingScreen"
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
@@ -217,11 +218,7 @@ const App = () => {
             component={ProductsScreen}
             options={{ headerShown: false }}
             />
-            <Stack.Screen
-            name="ListOfProducts"
-            component={ListOfProducts}
-            options={{ headerShown: false }}
-            />
+
           </Stack.Navigator>
         </NavigationContainer>
       </PaperProvider>

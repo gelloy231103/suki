@@ -43,7 +43,7 @@ const SwipeableCard = memo(({ card, onDelete, onSetDefault }) => {
       inputRange: [0, 50, 100, 101],
       outputRange: [0, 0, 0, 1],
     });
-
+  
     return (
       React.createElement(View, {style: styles.rightActionsContainer},
         !card.isDefault && React.createElement(TouchableOpacity, {
@@ -285,6 +285,46 @@ export default function DashboardScreen({navigation, route}) {
     setVisibleCount(prev => prev + 2);
   };
 
+    const Action = memo(({ icon, label, onPress }) => (
+      <TouchableOpacity style={styles.action} onPress={onPress}>
+        <MaterialCommunityIcons name={icon} size={24} color="#8CC63F" />
+        <Text style={styles.actionText}>{label}</Text>
+      </TouchableOpacity>
+    ));
+
+    const checkFarmAndNavigate = async () => {
+    try {
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      navigation.navigate('Login');
+      return;
+    }
+
+    // Check if farm document exists
+    const farmRef = doc(db, 'farms', userId);
+    const farmSnap = await getDoc(farmRef);
+
+    if (!farmSnap.exists()) {
+      // If farm doesn't exist, go to BarnIntro and prevent going back
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'BarnIntro' }],
+      });
+    } else {
+      // If farm exists, go to FarmDashboard
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'FarmDashboard' }],
+      });
+    }
+      } catch (error) {
+        console.error('Error checking farm:', error);
+        // Fallback navigation in case of error
+        navigation.navigate('FarmDashboard');
+      }
+    };
+
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
@@ -359,10 +399,7 @@ export default function DashboardScreen({navigation, route}) {
             <Action 
               icon="barn" 
               label="My Barn" 
-              onPress={() => navigation.reset({
-                index: 0,
-                routes: [{ name: 'BarnIntro' }],
-              })} 
+              onPress={checkFarmAndNavigate}
             />
             <Action icon="receipt" label="My Orders" />
             <Action icon="history" label="My History" />

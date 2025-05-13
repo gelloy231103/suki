@@ -1,217 +1,375 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  TouchableOpacity, 
+  Image, 
+  RefreshControl,
+  ActivityIndicator,
+  SafeAreaView,
+  TextInput
+} from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { useNavigation } from '@react-navigation/native';
 
 const ProductsScreen = () => {
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('products');
-  
-  const products = [
-    {
-      id: '248721',
-      name: 'Tomatoes',
-      category: 'Vegetables',
-      price: 'P 40 / kg',
-      quantity: '80',
-      discount: '10%',
-      status: 'In Stack',
-      image: require('../assets/tomatoes.png'), // Replace with your actual image path
-    },
-    {
-      id: '249725',
-      name: 'Eggplant',
-      category: 'Vegetables',
-      price: 'P 50 / kg',
-      quantity: '20',
-      discount: '5%',
-      status: 'In Stack',
-      image: require('../assets/eggplant.png'), // Replace with your actual image path
-    },
-    {
-      id: '249852',
-      name: 'Broccoliclous',
-      category: 'Vegetables',
-      price: 'P 90 / kg',
-      quantity: '40',
-      discount: '60%',
-      status: 'Out of Stack',
-      image: require('../assets/broccoli.png'), // Replace with your actual image path
-    },
-    {
-      id: '248336',
-      name: 'Lettuce Baguio',
-      category: 'Vegetables',
-      price: 'P 60 / kg',
-      quantity: '110',
-      discount: null,
-      status: 'In Stack',
-      image: require('../assets/lettuce.png'), // Replace with your actual image path
-    },
-  ];
+  const [products, setProducts] = useState([]);
+  const [drafts, setDrafts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const drafts = [
-    // Sample draft items (you can customize these)
-    {
-      id: '248722',
-      name: 'Carrots',
-      category: 'Vegetables',
-      price: 'P 30 / kg',
-      quantity: '50',
-      discount: null,
-      status: 'In Stack',
-      image: require('../assets/carrots.png'),
-    },
-    {
-      id: '249726',
-      name: 'Potatoes',
-      category: 'Vegetables',
-      price: 'P 45 / kg',
-      quantity: '75',
-      discount: '8%',
-      status: 'In Stack',
-      image: require('../assets/potato.png'),
-    },
-  ];
+  // Fetch all products from Firestore (removed farmId filter)
+  useEffect(() => {
+    const fetchProducts = () => {
+      setLoading(true);
+      
+      // Query for all products (not drafts)
+      const productsQuery = query(
+        collection(db, 'products'),
+        where('status', '!=', 'draft')
+      );
+      
+      // Query for drafts
+      const draftsQuery = query(
+        collection(db, 'products'),
+        where('status', '==', 'draft')
+      );
+
+      const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
+        const productsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          formattedPrice: `₱${doc.data().price.toFixed(2)}`,
+          discountPrice: doc.data().percentage 
+            ? `₱${(doc.data().price * (1 - doc.data().percentage/100)).toFixed(2)}`
+            : null
+        }));
+        setProducts(productsData);
+        setLoading(false);
+        setRefreshing(false);
+      });
+
+      const unsubscribeDrafts = onSnapshot(draftsQuery, (snapshot) => {
+        const draftsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          formattedPrice: `₱${doc.data().price.toFixed(2)}`
+        }));
+        setDrafts(draftsData);
+      });
+
+      return () => {
+        unsubscribeProducts();
+        unsubscribeDrafts();
+      };
+    };
+
+    fetchProducts();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    // The useEffect will automatically refetch when refreshing changes
+  };
+
+  // Filter products based on search query
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.category?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredDrafts = drafts.filter(draft => 
+    draft.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    draft.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    draft.category?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const renderProductItem = ({ item }) => (
-    <View style={styles.productContainer}>
+    <TouchableOpacity 
+      style={styles.productContainer}
+      onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
+    >
       <View style={styles.productHeader}>
         <View style={styles.productInfo}>
-          <Image source={item.image} style={styles.productImage} />
-          <View>
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productId}>ID {item.id}</Text>
+          {item.images?.length > 0 ? (
+            <Image source={{ uri: item.images[0] }} style={styles.productImage} />
+          ) : (
+            <View style={[styles.productImage, styles.emptyImage]}>
+              <Ionicons name="image" size={24} color="#9DCD5A" />
+            </View>
+          )}
+          <View style={styles.productTextContainer}>
+            <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.productCategory}>{item.category}</Text>
+            {item.isFeatured && (
+              <View style={styles.featuredTag}>
+                <Text style={styles.featuredText}>Featured</Text>
+              </View>
+            )}
           </View>
         </View>
         <View style={styles.statusContainer}>
-          <Text style={[
-            styles.statusText,
-            item.status === 'In Stack' ? styles.inStack : styles.outOfStack
+          <View style={[
+            styles.statusBadge,
+            item.status === 'available' && styles.statusAvailable,
+            item.status === 'sold-out' && styles.statusSoldOut,
+            item.status === 'seasonal' && styles.statusSeasonal,
           ]}>
-            {item.status}
-          </Text>
+            <Text style={styles.statusText}>
+              {item.status === 'available' ? 'In Stock' : 
+               item.status === 'sold-out' ? 'Sold Out' : 'Seasonal'}
+            </Text>
+          </View>
           <TouchableOpacity>
             <MaterialIcons name="more-vert" size={24} color="#666" />
           </TouchableOpacity>
         </View>
       </View>
       
-      <View style={styles.detailsRow}>
-        <Text style={styles.detailLabel}>Category</Text>
-        <Text style={styles.detailLabel}>Price</Text>
-        <Text style={styles.detailLabel}>Quantity (u)</Text>
+      <View style={styles.priceContainer}>
+        {item.percentage > 0 ? (
+          <>
+            <Text style={styles.originalPrice}>{item.formattedPrice}</Text>
+            <Text style={styles.discountedPrice}>{item.discountPrice}</Text>
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>{item.percentage}% OFF</Text>
+            </View>
+          </>
+        ) : (
+          <Text style={styles.productPrice}>{item.formattedPrice}</Text>
+        )}
       </View>
       
-      <View style={styles.detailsRow}>
-        <Text style={styles.detailValue}>{item.category}</Text>
-        <Text style={styles.detailValue}>{item.price}</Text>
-        <Text style={styles.detailValue}>{item.quantity}</Text>
-      </View>
-      
-      {item.discount && (
-        <View style={styles.discountContainer}>
-          <Text style={styles.discountText}>Discounted price</Text>
-          <View style={styles.discountRow}>
-            <Text style={styles.discountValue}>- {item.discount}</Text>
-            <TouchableOpacity style={styles.editButton}>
-              <Text style={styles.editButtonText}>Edit Discount</Text>
-            </TouchableOpacity>
-          </View>
+      <View style={styles.detailsContainer}>
+        <View style={styles.detailItem}>
+          <Ionicons name="pricetag" size={16} color="#9DCD5A" />
+          <Text style={styles.detailValue}>{item.unit || 'kg'}</Text>
         </View>
-      )}
-    </View>
+        
+        <View style={styles.detailItem}>
+          <Ionicons name="cube" size={16} color="#9DCD5A" />
+          <Text style={styles.detailValue}>{item.stock} available</Text>
+        </View>
+        
+        <View style={styles.detailItem}>
+          <Ionicons name="cart" size={16} color="#9DCD5A" />
+          <Text style={styles.detailValue}>Min: {item.minimumOrder || 1}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Products</Text>
-        
-        <View style={styles.tabContainer}>
-          <TouchableOpacity 
-            style={[styles.tabButton, activeTab === 'products' && styles.activeTab]}
-            onPress={() => setActiveTab('products')}
-          >
-            <Text style={[styles.tabText, activeTab === 'products' && styles.activeTabText]}>Products</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tabButton, activeTab === 'drafts' && styles.activeTab]}
-            onPress={() => setActiveTab('drafts')}
-          >
-            <Text style={[styles.tabText, activeTab === 'drafts' && styles.activeTabText]}>Drafts</Text>
-          </TouchableOpacity>
-        </View>
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#9DCD5A" />
       </View>
-      
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      {/* Modern Header with Back Button */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.navigate('FarmDashboard')}
+        >
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>My Products</Text>
+        <View style={styles.headerRight} />
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search products..."
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery ? (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close" size={20} color="#999" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'products' && styles.activeTab]}
+          onPress={() => setActiveTab('products')}
+        >
+          <Text style={[styles.tabText, activeTab === 'products' && styles.activeTabText]}>
+            Products ({products.length})
+          </Text>
+          {activeTab === 'products' && <View style={styles.activeTabIndicator} />}
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'drafts' && styles.activeTab]}
+          onPress={() => setActiveTab('drafts')}
+        >
+          <Text style={[styles.tabText, activeTab === 'drafts' && styles.activeTabText]}>
+            Drafts ({drafts.length})
+          </Text>
+          {activeTab === 'drafts' && <View style={styles.activeTabIndicator} />}
+        </TouchableOpacity>
+      </View>
+
+      {/* Product List */}
       <FlatList
-        data={activeTab === 'products' ? products : drafts}
+        data={activeTab === 'products' ? filteredProducts : filteredDrafts}
         renderItem={renderProductItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No {activeTab} found</Text>
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#9DCD5A"
+          />
         }
-        />
-        <TouchableOpacity style={styles.addButton}>
-          <Ionicons name="add" size={32} color="white" />
-        </TouchableOpacity>
-    </View>
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="leaf-outline" size={48} color="#9DCD5A" />
+            <Text style={styles.emptyText}>
+              {activeTab === 'products' 
+                ? 'No products found' 
+                : 'No drafts saved'}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {activeTab === 'products' 
+                ? searchQuery ? 'Try a different search' : 'Add your first product to get started'
+                : 'Save products as drafts to continue later'}
+            </Text>
+          </View>
+        }
+      />
+      
+      {/* Add Product Button */}
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={() => navigation.navigate('AddProductScreen')}
+      >
+        <Ionicons name="add" size={28} color="white" />
+      </TouchableOpacity>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  // Modern Header Styles
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 16,
+    paddingTop: 8,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#f0f0f0',
   },
-  headerText: {
-    fontSize: 28,
-    fontFamily: 'Poppins-Black',
-    marginBottom: 16,
-    color:'#9DCD5A',
-    textAlign: 'center',
+  backButton: {
+    padding: 8,
   },
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
+  },
+  headerRight: {
+    width: 40,
+  },
+  // Search Bar
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    margin: 16,
+    height: 48,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 16,
+    color: '#333',
+  },
+  // Tab Navigation
   tabContainer: {
     flexDirection: 'row',
+    marginHorizontal: 16,
     marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   tabButton: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: '#f0f0f0',
     alignItems: 'center',
-    marginRight: 8,
-    borderRadius: 8,
+    position: 'relative',
   },
   activeTab: {
-    backgroundColor: '#9DCD5A',
+    // Styles applied when tab is active
   },
   tabText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#666',
+    fontFamily: 'Poppins-Medium',
+    color: '#888',
   },
   activeTabText: {
-    color: 'white',
-    fontFamily: 'Poppins-Black',
+    color: '#333',
+    fontFamily: 'Poppins-SemiBold',
   },
+  activeTabIndicator: {
+    position: 'absolute',
+    bottom: -1,
+    height: 2,
+    width: '50%',
+    backgroundColor: '#9DCD5A',
+  },
+  // Product List
   listContent: {
     padding: 16,
+    paddingBottom: 80,
   },
+  // Product Card
   productContainer: {
     backgroundColor: 'white',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
   productHeader: {
@@ -222,104 +380,159 @@ const styles = StyleSheet.create({
   productInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   productImage: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     borderRadius: 8,
     marginRight: 12,
+    backgroundColor: '#f8f9fa',
+  },
+  emptyImage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  productTextContainer: {
+    flex: 1,
   },
   productName: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
     marginBottom: 4,
   },
-  productId: {
+  productCategory: {
     fontSize: 14,
-    color: '#666',
+    color: '#9DCD5A',
+    fontFamily: 'Poppins-Medium',
+  },
+  featuredTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#e8f5e9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  featuredText: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
+    color: '#2e7d32',
   },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '500',
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
     marginRight: 8,
+  },
+  statusAvailable: {
+    backgroundColor: '#e8f5e9',
+  },
+  statusSoldOut: {
+    backgroundColor: '#ffebee',
+  },
+  statusSeasonal: {
+    backgroundColor: '#e3f2fd',
+  },
+  statusText: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
+  },
+  // Price Section
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  productPrice: {
+    fontSize: 18,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
+  },
+  originalPrice: {
+    fontSize: 14,
+    color: '#999',
+    textDecorationLine: 'line-through',
+    marginRight: 8,
+  },
+  discountedPrice: {
+    fontSize: 18,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#9DCD5A',
+    marginRight: 8,
+  },
+  discountBadge: {
+    backgroundColor: '#fff8e1',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
-  inStack: {
-    backgroundColor: '#e8f5e9',
-    color: '#2e7d32',
+  discountText: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
+    color: '#ff8f00',
   },
-  outOfStack: {
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-  },
-  detailsRow: {
+  // Details Section
+  detailsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f5f5f5',
   },
-  detailLabel: {
-    fontSize: 14,
-    color: '#666',
-    flex: 1,
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   detailValue: {
     fontSize: 14,
-    fontWeight: 'bold',
-    flex: 1,
-  },
-  discountContainer: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  discountText: {
-    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
     color: '#666',
-    marginBottom: 8,
+    marginLeft: 4,
   },
-  discountRow: {
-    flexDirection: 'row',
+  // Empty State
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    padding: 40,
   },
-  discountValue: {
+  emptyText: {
     fontSize: 16,
-    color: '#e74c3c',
-    fontWeight: 'bold',
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
+    marginTop: 16,
+    textAlign: 'center',
   },
-  editButton: {
-    backgroundColor: '#9DCD5A',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 4,
-  },
-  editButtonText: {
-    color: 'white',
-    fontFamily: 'Poppins-Bold',
+  emptySubtext: {
     fontSize: 14,
+    color: '#888',
+    marginTop: 8,
+    textAlign: 'center',
   },
+  // Add Button
   addButton: {
     position: 'absolute',
-    bottom: 30,
-    right: 30,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#9DCD5A',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });
 
