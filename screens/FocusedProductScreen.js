@@ -133,11 +133,6 @@ const FocusedProductScreen = () => {
     animateButton();
   };
 
-  const formatPrice = (price) => {
-    const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price) || 0;
-    return `₱${numPrice.toFixed(2)}`;
-  };
-
   const addToCart = () => {
     if (!product) return;
     
@@ -155,10 +150,10 @@ const FocusedProductScreen = () => {
   };
 
   const handleBuyNow = () => {
-    if (!product) return;
+  if (!product) return;
     
-    // Set default delivery option if available
-    if (product.deliveryOptions) {
+    // Only set default delivery option if none is selected
+    if (!deliveryOption && product.deliveryOptions) {
       if (product.deliveryOptions.pickup) {
         setDeliveryOption('pickup');
       } else if (product.deliveryOptions.delivery) {
@@ -398,7 +393,7 @@ const FocusedProductScreen = () => {
                 <View style={styles.infoRow}>
                   <Icon name="home" size={18} color="#9DCD5A" />
                   <Text style={styles.infoText}>
-                    {user?.address ? `${user.address.street}, ${user.address.city}, ${user.address.province}` : 'No address provided'}
+                    {user?.addresses ? `${user.addresses.street}, ${user.addresses.city}, ${user.addresses.province}` : 'No address provided'}
                   </Text>
                 </View>
               )}
@@ -485,12 +480,11 @@ const FocusedProductScreen = () => {
 
         {/* Product Images Carousel */}
         <View style={styles.imageCarousel}>
-          {product.images && product.images.length > 0 ? (
+          {product.images?.length > 0 ? (
             <Image
-              source={getImageSource(product.images[activeImageIndex])}
+              source={{ uri: product.images[activeImageIndex] }}
               style={styles.productImage}
               resizeMode="contain"
-              defaultSource={defaultImage}
             />
           ) : (
             <View style={[styles.productImage, styles.emptyImage]}>
