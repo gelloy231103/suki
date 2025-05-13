@@ -20,6 +20,7 @@ import { auth, db } from '../config/firebase';
 import { signOut } from 'firebase/auth';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { useIsFocused } from '@react-navigation/native';
+import OrdersScreen from './OrdersScreen';
 
 const { width } = Dimensions.get('window');
 
@@ -428,7 +429,11 @@ export default function DashboardScreen({navigation, route}) {
               label="My Barn" 
               onPress={checkFarmAndNavigate}
             />
-            <Action icon="receipt" label="My Orders" />
+            <Action 
+              icon="receipt" 
+              label="My Orders" 
+              onPress={() => navigation.navigate('OrdersScreen')}
+            />
             <Action icon="history" label="My History" />
           </View>
 
