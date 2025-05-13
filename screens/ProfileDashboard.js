@@ -332,7 +332,9 @@ export default function DashboardScreen({navigation, route}) {
           {/* Green header section */}
           <View style={styles.greenHeader}>
             <View style={styles.headerTopRow}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Ionicons name="arrow-back" size={24} color="#fff" 
+              onPress={() => navigation.navigate('Dashboard')}
+              />
               <View style={styles.headerIcons}>
                 <Ionicons name="chatbox-ellipses" size={24} color="#fff" />
                 <Ionicons name="notifications" size={24} color="#fff" />

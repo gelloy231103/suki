@@ -188,7 +188,15 @@ export default function FarmDashboardScreen({ navigation, route }) {
             onPress={() => navigation.navigate('OrdermanagementScreen')}
           />
           <Action icon="history" label="History" />
-          <Action icon="home" label="Home" />
+          <Action 
+            icon="home" 
+            label="Home"
+            onPress={()=> navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainTab' }],
+              })
+            } 
+          />
         </View>
 
         <SectionHeader title="Your Farm Locator" />

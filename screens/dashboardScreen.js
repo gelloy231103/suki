@@ -1,12 +1,69 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, FlatList, Animated, Easing } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, FlatList, Animated, Easing, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 const DashboardScreen = ({ navigation }) => {
   const categories = ['Leafy Greens', 'Root Crops', 'Fruits', 'Herbs', 'Fillers & Beauty'];
   const [searchFocused, setSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const scaleValue = new Animated.Value(1);
+
+  // Fetch products from Firebase
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      
+      let productsQuery = query(
+        collection(db, 'products'),
+        where('status', '==', 'available'),
+        limit(20)
+      );
+
+      if (selectedCategory) {
+        productsQuery = query(
+          productsQuery,
+          where('category', '==', selectedCategory)
+        );
+      }
+
+      if (searchQuery) {
+        productsQuery = query(
+          productsQuery,
+          where('name', '>=', searchQuery),
+          where('name', '<=', searchQuery + '\uf8ff')
+        );
+      }
+
+      const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+        const productsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          price: `₱${doc.data().price.toFixed(2)}${doc.data().unit ? `/${doc.data().unit.toLowerCase()}` : ''}`,
+          originalPrice: doc.data().discount?.percentage 
+            ? `₱${doc.data().price.toFixed(2)}`
+            : null,
+          discount: doc.data().discount?.percentage 
+            ? `${doc.data().discount.percentage}% OFF` 
+            : null
+        }));
+        
+        setProducts(productsData);
+        setLoading(false);
+        setRefreshing(false);
+      });
+
+      return () => unsubscribe();
+    };
+
+    fetchProducts();
+  }, [selectedCategory, searchQuery]);
 
   const animateButton = () => {
     Animated.sequence([
@@ -25,21 +82,113 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const renderRatingStars = (rating) => {
-    return (
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Icon 
-            key={i}
-            name={i <= rating ? 'star' : 'star-border'}
-            size={14}
-            color={i <= rating ? '#FFD700' : '#E0E0E0'}
-          />
-        ))}
-      </View>
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+    
+    for (let i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars.push(
+          <Icon key={i} name="star" size={14} color="#FFD700" />
+        );
+      } else if (i === fullStars + 1 && hasHalfStar) {
+        stars.push(
+          <Icon key={i} name="star-half" size={14} color="#FFD700" />
+        );
+      } else {
+        stars.push(
+          <Icon key={i} name="star-border" size={14} color="#E0E0E0" />
+        );
+      }
+    }
+    
+    return <View style={styles.starsContainer}>{stars}</View>;
+  };
+
+  const toggleLike = (id) => {
+    animateButton();
+    setProducts(prevProducts => 
+      prevProducts.map(product => 
+        product.id === id ? {...product, liked: !product.liked} : product
+      )
     );
   };
 
-  // Flash Deals Data
+    const renderProduct = ({ item }) => (
+      <Animated.View 
+        style={[styles.productCard, { transform: [{ scale: scaleValue }] }]}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.navigate('FocusedProduct', { productId: item.id })}  // Changed this line
+          activeOpacity={0.9}
+        >
+        <View style={styles.productImageContainer}>
+          {item.images?.[0] ? (
+            <Image 
+              source={{ uri: item.images[0] }} 
+              style={styles.productImage} 
+              resizeMode="cover" 
+            />
+          ) : (
+            <View style={[styles.productImage, styles.emptyImage]}>
+              <Icon name="image" size={24} color="#9DCD5A" />
+            </View>
+          )}
+          
+          <TouchableOpacity 
+            onPress={() => toggleLike(item.id)}
+            style={styles.productHeartIcon}
+          >
+            <Icon 
+              name={item.liked ? 'favorite' : 'favorite-border'} 
+              size={20} 
+              color={item.liked ? '#FF5252' : 'white'} 
+            />
+          </TouchableOpacity>
+          
+          {item.discount && (
+            <View style={styles.productDiscountBadge}>
+              <Text style={styles.productDiscountText}>{item.discount}</Text>
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.productContent}>
+          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+          
+          <View style={styles.productPriceContainer}>
+            <Text style={styles.productPrice}>
+              {item.discount 
+                ? `₱${(item.price * (1 - (parseInt(item.discount)/100))).toFixed(2)}` 
+                : item.price}
+            </Text>
+            {item.originalPrice && (
+              <Text style={styles.productOriginalPrice}>{item.originalPrice}</Text>
+            )}
+          </View>
+          
+          <View style={styles.productRatingContainer}>
+            {renderRatingStars(item.rating || 4.0)}
+            <Text style={styles.productReviewText}>{item.reviews || 0} reviews</Text>
+          </View>
+          
+          <View style={styles.productFarmContainer}>
+            <Icon name="location-on" size={14} color="#9DCD5A" />
+            <Text style={styles.productFarmText} numberOfLines={1}>
+              {item.farm || 'Local Farm'}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    // The useEffect will automatically refetch when refreshing changes
+  };
+
+  // Flash Deals Data (unchanged from your original code)
   const flashDeals = [
     {
       id: '1',
@@ -87,69 +236,6 @@ const DashboardScreen = ({ navigation }) => {
 
   const [flashDealsList, setFlashDealsList] = useState(flashDeals);
 
-  // Regular Products Data
-  const products = [
-    {
-      id: '1',
-      name: 'Sweet Cherry Tomatoes',
-      price: '₱40/kg',
-      originalPrice: '₱60/kg',
-      rating: 4.2,
-      reviews: 354,
-      farm: 'Tadhana FarmVille',
-      image: require('../assets/garlic.png'),
-      liked: false,
-    },
-    {
-      id: '2',
-      name: 'Organic Eggplant',
-      price: '₱80/kg',
-      rating: 4.5,
-      reviews: 210,
-      farm: 'Marikina Farm',
-      image: require('../assets/garlic.png'),
-      liked: false,
-    },
-    {
-      id: '3',
-      name: 'Fresh Broccoli',
-      price: '₱120/kg',
-      rating: 4.7,
-      reviews: 189,
-      farm: 'Green Valley',
-      image: require('../assets/garlic.png'),
-      liked: false
-    },
-    {
-      id: '4',
-      name: 'Organic Carrots',
-      price: '₱60/kg',
-      rating: 4.3,
-      reviews: 142,
-      farm: 'Roots Farm',
-      image: require('../assets/garlic.png'),
-      liked: false
-    },
-  ];
-  const [productList, setProductList] = useState(products);
-
-  const toggleLike = (id, type) => {
-    animateButton();
-    if (type === 'flash') {
-      setFlashDealsList(prevDeals => 
-        prevDeals.map(deal => 
-          deal.id === id ? {...deal, liked: !deal.liked} : deal
-        )
-      );
-    } else {
-      setProductList(prevProducts => 
-        prevProducts.map(product => 
-          product.id === id ? {...product, liked: !product.liked} : product
-        )
-      );
-    }
-  };
-
   const renderFlashDeal = ({ item }) => (
     <View style={[styles.flashDealCard]}>
       <View style={styles.flashDealImageContainer}>
@@ -167,7 +253,14 @@ const DashboardScreen = ({ navigation }) => {
         )}
         
         <TouchableOpacity 
-          onPress={() => toggleLike(item.id, 'flash')} 
+          onPress={() => {
+            animateButton();
+            setFlashDealsList(prevDeals => 
+              prevDeals.map(deal => 
+                deal.id === item.id ? {...deal, liked: !deal.liked} : deal
+              )
+            );
+          }} 
           style={styles.heartIcon}
         >
           <Icon 
@@ -217,66 +310,20 @@ const DashboardScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderProduct = ({ item }) => (
-    <Animated.View 
-      style={[styles.productCard, { transform: [{ scale: scaleValue }] }]}
-    >
-      <TouchableOpacity
-        onPress={() => navigation.navigate('FocusedProduct', { product: item })}
-        activeOpacity={0.9}
-      >
-        <View style={styles.productImageContainer}>
-          <Image source={item.image} style={styles.productImage} resizeMode="cover" />
-          
-          <TouchableOpacity 
-            onPress={() => toggleLike(item.id, 'product')}
-            style={styles.productHeartIcon}
-          >
-            <Icon 
-              name={item.liked ? 'favorite' : 'favorite-border'} 
-              size={20} 
-              color={item.liked ? '#FF5252' : 'white'} 
-            />
-          </TouchableOpacity>
-          
-          {item.originalPrice && (
-            <View style={styles.productDiscountBadge}>
-              <Text style={styles.productDiscountText}>SAVE ₱20</Text>
-            </View>
-          )}
-        </View>
-        
-        <View style={styles.productContent}>
-          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-          
-          <View style={styles.productPriceContainer}>
-            <Text style={styles.productPrice}>{item.price}</Text>
-            {item.originalPrice && (
-              <Text style={styles.productOriginalPrice}>{item.originalPrice}</Text>
-            )}
-          </View>
-          
-          <View style={styles.productRatingContainer}>
-            {renderRatingStars(item.rating)}
-            <Text style={styles.productReviewText}>{item.reviews} reviews</Text>
-          </View>
-          
-          <View style={styles.productFarmContainer}>
-            <Icon name="location-on" size={14} color="#9DCD5A" />
-            <Text style={styles.productFarmText} numberOfLines={1}>{item.farm}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-      
-    </Animated.View>
-  );
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#9DCD5A']}
+            tintColor="#9DCD5A"
+          />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
@@ -285,7 +332,10 @@ const DashboardScreen = ({ navigation }) => {
             <Text style={styles.userName}>Suki Member!</Text>
           </View>
           
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('Notifications')}
+          >
             <Icon name="notifications" size={24} color="#333" />
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
@@ -298,16 +348,20 @@ const DashboardScreen = ({ navigation }) => {
             placeholder="Search for fresh produce..."
             style={styles.searchInput}
             placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
           />
-          <TouchableOpacity style={styles.filterButton}>
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => navigation.navigate('Filters')}
+          >
             <Icon name="tune" size={20} color="#9DCD5A" />
           </TouchableOpacity>
         </View>
         
         {/* Categories */}
-        
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, {marginLeft: 20, marginBottom: 10}]}>Shop Categories</Text>
           <ScrollView 
@@ -318,10 +372,18 @@ const DashboardScreen = ({ navigation }) => {
             {categories.map((category, index) => (
               <TouchableOpacity 
                 key={index} 
-                style={styles.categoryButton}
-                onPress={() => navigation.navigate('CategoryProducts', { category })}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === category && styles.selectedCategoryButton
+                ]}
+                onPress={() => setSelectedCategory(selectedCategory === category ? null : category)}
               >
-                <Text style={styles.categoryText}>{category}</Text>
+                <Text style={[
+                  styles.categoryText,
+                  selectedCategory === category && styles.selectedCategoryText
+                ]}>
+                  {category}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -337,7 +399,10 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.bannerContent}>
             <Text style={styles.bannerTitle}>Seasonal Specials</Text>
             <Text style={styles.bannerSubtitle}>Up to 70% OFF on selected items</Text>
-            <TouchableOpacity style={styles.bannerButton}>
+            <TouchableOpacity 
+              style={styles.bannerButton}
+              onPress={() => navigation.navigate('SeasonalProducts')}
+            >
               <Text style={styles.bannerButtonText}>SHOP NOW</Text>
             </TouchableOpacity>
           </View>
@@ -350,7 +415,10 @@ const DashboardScreen = ({ navigation }) => {
               <Icon name="flash-on" size={20} color="#FFA726" />
               <Text style={styles.sectionTitle}>Flash Deals</Text>
             </View>
-            <TouchableOpacity style={styles.viewAllButton}>
+            <TouchableOpacity 
+              style={styles.viewAllButton}
+              onPress={() => navigation.navigate('FlashDeals')}
+            >
               <Text style={styles.viewAllText}>View All</Text>
               <Icon name="chevron-right" size={16} color="#9DCD5A" />
             </TouchableOpacity>
@@ -372,20 +440,34 @@ const DashboardScreen = ({ navigation }) => {
               <Icon name="local-offer" size={20} color="#9DCD5A" />
               <Text style={styles.sectionTitle}>Fresh Picks</Text>
             </View>
-            <TouchableOpacity style={styles.viewAllButton}>
+            <TouchableOpacity 
+              style={styles.viewAllButton}
+              onPress={() => navigation.navigate('AllProducts')}
+            >
               <Text style={styles.viewAllText}>View All</Text>
               <Icon name="chevron-right" size={16} color="#9DCD5A" />
             </TouchableOpacity>
           </View>
-          <FlatList
-            data={productList}
-            renderItem={renderProduct}
-            keyExtractor={item => item.id}
-            scrollEnabled={false}
-            contentContainerStyle={styles.productsContainer}
-            numColumns={2}
-            columnWrapperStyle={styles.productsRow}
-          />
+          
+          {loading ? (
+            <ActivityIndicator size="large" color="#9DCD5A" style={styles.loadingIndicator} />
+          ) : products.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Icon name="search-off" size={48} color="#9DCD5A" />
+              <Text style={styles.emptyText}>No products found</Text>
+              <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={products}
+              renderItem={renderProduct}
+              keyExtractor={item => item.id}
+              scrollEnabled={false}
+              contentContainerStyle={styles.productsContainer}
+              numColumns={2}
+              columnWrapperStyle={styles.productsRow}
+            />
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -401,7 +483,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: 10,
+    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',
@@ -490,6 +572,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#333',
     fontFamily: 'Poppins-Bold',
+    marginLeft: 8,
   },
   viewAllButton: {
     flexDirection: 'row',
@@ -499,6 +582,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9DCD5A',
     fontFamily: 'Poppins-SemiBold',
+    marginRight: 4,
   },
   categoriesContainer: {
     paddingLeft: 24,
@@ -509,7 +593,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderRadius: 20,
     backgroundColor: '#FFF',
-    paddingVertical: 5,
+    paddingVertical: 8,
     paddingHorizontal: 20,
     elevation: 2,
     shadowColor: '#000',
@@ -519,11 +603,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EEE',
   },
+  selectedCategoryButton: {
+    backgroundColor: '#9DCD5A',
+    borderColor: '#9DCD5A',
+  },
   categoryText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#9DCD5A',
     fontFamily: 'Poppins-SemiBold',
+  },
+  selectedCategoryText: {
+    color: '#FFF',
   },
   bannerContainer: {
     height: 160,
@@ -740,15 +831,16 @@ const styles = StyleSheet.create({
     width: '48%',
     backgroundColor: '#FFF',
     borderRadius: 12,
-    elevation: 1,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     overflow: 'hidden',
     position: 'relative',
     borderWidth: 1,
     borderColor: '#F0F0F0',
+    marginBottom: 16,
   },
   productImageContainer: {
     height: 140,
@@ -758,6 +850,11 @@ const styles = StyleSheet.create({
   productImage: {
     width: '100%',
     height: '100%',
+  },
+  emptyImage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
   },
   productHeartIcon: {
     position: 'absolute',
@@ -830,6 +927,29 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginLeft: 4,
     flex: 1,
+  },
+  loadingIndicator: {
+    marginVertical: 40,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#888',
+    fontFamily: 'Poppins-Regular',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
 
