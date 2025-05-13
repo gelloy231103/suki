@@ -1,31 +1,83 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+
+const defaultImage = require('../assets/tomatoes.png');
 
 const products = [
   {
+    id: '1',
     name: 'Sweet Tomatoes',
-    price: '₱40/kg',
+    price: 40.00,
+    unit: 'kilogram',
+    category: 'Vegetables',
+    stock: 100,
+    status: 'available',
     image: require('../assets/tomatoes.png'),
+    farmName: 'Tadhana FarmVille',
   },
   {
+    id: '2',
     name: 'Biggest Eggplant',
-    price: '₱80/kg',
+    price: 80.00,
+    unit: 'kilogram',
+    category: 'Vegetables',
+    stock: 50,
+    status: 'available',
     image: require('../assets/eggplant.png'),
+    farmName: 'Tadhana FarmVille',
   },
   {
+    id: '3',
     name: 'Broccolicious',
-    price: '₱40/kg',
+    price: 40.00,
+    unit: 'kilogram',
+    category: 'Vegetables',
+    stock: 75,
+    status: 'available',
     image: require('../assets/broccoli.png'),
+    farmName: 'Tadhana FarmVille',
   },
   {
+    id: '4',
     name: 'Lettuce Baguio',
-    price: '₱35/kg',
+    price: 35.00,
+    unit: 'kilogram',
+    category: 'Leafy Greens',
+    stock: 60,
+    status: 'available',
     image: require('../assets/lettuce.png'),
+    farmName: 'Tadhana FarmVille',
   },
 ];
 
 export default function ProductList() {
+  const navigation = useNavigation();
+
+  const handleProductPress = (product) => {
+    navigation.navigate('FocusedProduct', { 
+      productId: product.id,
+      product: {
+        ...product,
+        formattedPrice: `₱${product.price.toFixed(2)}/${product.unit}`,
+        images: [product.image],
+      }
+    });
+  };
+
+  const formatPrice = (price, unit) => {
+    return `₱${price.toFixed(2)}/${unit}`;
+  };
+
+  const getImageSource = (image) => {
+    try {
+      return image || defaultImage;
+    } catch (error) {
+      return defaultImage;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -51,15 +103,23 @@ export default function ProductList() {
 
       <ScrollView contentContainerStyle={styles.productList}>
         {products.map((product, index) => (
-          <View key={index} style={styles.productCard}>
-            <Image source={product.image} style={styles.productImage} />
+          <TouchableOpacity
+            key={index}
+            style={styles.productCard}
+            onPress={() => handleProductPress(product)}
+          >
+            <Image 
+              source={getImageSource(product.image)} 
+              style={styles.productImage}
+              defaultSource={defaultImage}
+            />
             <View style={styles.productInfo}>
               <Text style={styles.productName}>{product.name}</Text>
-              <Text style={styles.productPrice}>{product.price}</Text>
+              <Text style={styles.productPrice}>{formatPrice(product.price, product.unit)}</Text>
               <Text style={styles.reviews}>⭐ 254 reviews</Text>
             </View>
             <MaterialIcons name="edit" size={20} color="green" />
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </View>

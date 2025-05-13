@@ -13,12 +13,15 @@ import {
   Easing,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+
+const defaultImage = require('../assets/tomatoes.png');
 
 const FocusedProductScreen = () => {
   const navigation = useNavigation();
@@ -30,6 +33,24 @@ const FocusedProductScreen = () => {
   const scaleValue = new Animated.Value(1);
   const [product, setProduct] = useState(route.params?.product);
   const scrollViewRef = React.useRef();
+
+  // Helper function to safely format unit
+  const formatUnit = (unit) => {
+    return (unit || 'piece').toLowerCase();
+  };
+
+  // Helper function to get image source
+  const getImageSource = (image) => {
+    try {
+      if (!image) return defaultImage;
+      if (typeof image === 'number') return image;
+      if (typeof image === 'string') return { uri: image };
+      if (image.uri) return image;
+      return defaultImage;
+    } catch (error) {
+      return defaultImage;
+    }
+  };
 
   // Get product data from Firebase
   useEffect(() => {
@@ -114,32 +135,84 @@ const FocusedProductScreen = () => {
   };
 
   const addToCart = () => {
-    if (!product) return;
+    if (!product) {
+      Alert.alert('Error', 'Product information not available');
+      return;
+    }
     
-    // Prepare the cart item
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+    
     const cartItem = {
-      farmId: product.farmId,
+      farmId: product.farmId || 'unknown',
       farmName: product.farmName || product.farm || 'Unknown Farm',
       productId: product.id,
       productName: product.name,
-      variant: product.variant || product.unit,
-      price: product.price,
+      variant: `${quantity} ${formatUnit(product.unit)}`,
+      price: price || 0,
       quantity: quantity,
-      image: product.images?.[0] ? { uri: product.images[0] } : require('../assets/tomatoes.png')
+      image: product.images?.[0] || product.image || require('../assets/tomatoes.png')
     };
 
-    // Navigate to CartScreen with the new item
-    navigation.navigate('CartScreen', { 
-      cartItems: [cartItem],
-      merge: true // This will merge with existing navigation params
-    });
-
-    // Show feedback to user
     Alert.alert(
       'Added to Cart',
-      `${quantity} ${product.unit.toLowerCase()} of ${product.name} has been added to your cart`,
+      `${quantity} ${formatUnit(product.unit)} of ${product.name} has been added to your cart`,
       [
-        { text: 'OK', onPress: () => {} }
+        { 
+          text: 'OK', 
+          onPress: () => {
+            navigation.navigate('CartScreen', { 
+              cartItems: [cartItem],
+              merge: true
+            });
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBuyNow = () => {
+    if (!product) {
+      Alert.alert('Error', 'Product information not available');
+      return;
+    }
+
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+    
+    const cartItem = {
+      farmId: product.farmId || 'unknown',
+      farmName: product.farmName || product.farm || 'Unknown Farm',
+      productId: product.id,
+      productName: product.name,
+      variant: `${quantity} ${formatUnit(product.unit)}`,
+      price: price || 0,
+      quantity: quantity,
+      image: product.images?.[0] || product.image || require('../assets/tomatoes.png')
+    };
+
+    Alert.alert(
+      'Proceed to Checkout',
+      `Buy ${quantity} ${formatUnit(product.unit)} of ${product.name}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'OK',
+          onPress: () => {
+            navigation.navigate('CartScreen', { 
+              cartItems: [cartItem],
+              merge: true
+            });
+            navigation.reset({
+              index: 0,
+              routes: [
+                { name: 'CartScreen', params: { cartItems: [cartItem], merge: true } },
+                { name: 'CheckOut' }
+              ],
+            });
+          }
+        }
       ]
     );
   };
@@ -227,11 +300,12 @@ const FocusedProductScreen = () => {
 
         {/* Product Images Carousel */}
         <View style={styles.imageCarousel}>
-          {product.images?.length > 0 ? (
+          {product.images && product.images.length > 0 ? (
             <Image
-              source={{ uri: product.images[activeImageIndex] }}
+              source={getImageSource(product.images[activeImageIndex])}
               style={styles.productImage}
               resizeMode="contain"
+              defaultSource={defaultImage}
             />
           ) : (
             <View style={[styles.productImage, styles.emptyImage]}>
@@ -298,7 +372,7 @@ const FocusedProductScreen = () => {
               ({product.rating?.count || 32} reviews)
             </Text>
             <Text style={styles.stockText}>
-              • {product.stock} {product.unit.toLowerCase()} available
+              • {product.stock} {formatUnit(product.unit)} available
             </Text>
           </View>
 
@@ -351,7 +425,7 @@ const FocusedProductScreen = () => {
                   </TouchableOpacity>
                 </View>
               </View>
-              <Text style={styles.unitText}>{product.unit.toLowerCase()}</Text>
+              <Text style={styles.unitText}>{formatUnit(product.unit)}</Text>
             </View>
           </View>
 
@@ -422,10 +496,7 @@ const FocusedProductScreen = () => {
         
         <TouchableOpacity 
           style={styles.buyNowButton}
-          onPress={() => {
-            addToCart();
-            navigation.navigate('CheckOut');
-          }}
+          onPress={handleBuyNow}
         >
           <Text style={styles.buyNowText}>BUY NOW</Text>
         </TouchableOpacity>
