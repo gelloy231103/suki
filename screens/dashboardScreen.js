@@ -114,14 +114,14 @@ const DashboardScreen = ({ navigation }) => {
     );
   };
 
-  const renderProduct = ({ item }) => (
-    <Animated.View 
-      style={[styles.productCard, { transform: [{ scale: scaleValue }] }]}
-    >
-      <TouchableOpacity
-        onPress={() => navigation.navigate('FocusedProduct', { product: item })}
-        activeOpacity={0.9}
+    const renderProduct = ({ item }) => (
+      <Animated.View 
+        style={[styles.productCard, { transform: [{ scale: scaleValue }] }]}
       >
+        <TouchableOpacity
+          onPress={() => navigation.navigate('FocusedProduct', { productId: item.id })}  // Changed this line
+          activeOpacity={0.9}
+        >
         <View style={styles.productImageContainer}>
           {item.images?.[0] ? (
             <Image 
