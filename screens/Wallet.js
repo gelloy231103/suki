@@ -328,7 +328,9 @@ const Wallet = ({navigation}) => {
             {/* Header Section */}
             <View style={styles.headContainer}>
               <View style={styles.headerTopRow}>
-                <Ionicons name="arrow-back" size={24} color="#fff" />
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <Ionicons name="arrow-back" size={24} color="#fff" />
+                </TouchableOpacity>
                 <View style={styles.headerIcons}>
                   <Ionicons name="chatbox-ellipses" size={24} color="#fff" style={styles.headerIcon} />
                   <Ionicons name="notifications" size={24} color="#fff" style={styles.headerIcon} />

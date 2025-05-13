@@ -30,10 +30,10 @@ const productImages = [
   require('../assets/images/products/2.png'),
 ];
 
-export default function FarmDashboardScreen({ navigation }) {
+export default function FarmDashboardScreen({ navigation, route }) {
   const { userData } = useContext(AuthContext);
   const [farmData, setFarmData] = useState(null);
-  const [products, setProducts] = useState([]); // New state for products
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [coordinates, setCoordinates] = useState({
     latitude: 14.5995,
@@ -94,7 +94,7 @@ export default function FarmDashboardScreen({ navigation }) {
     };
 
     fetchFarmData();
-  }, []);
+  }, [route.params?.refresh]); // Add refresh dependency
 
   if (loading) {
     return (
@@ -103,6 +103,14 @@ export default function FarmDashboardScreen({ navigation }) {
       </View>
     );
   }
+
+  const handleProductPress = (product) => {
+    navigation.navigate('AddProductScreen', { 
+      product,
+      mode: 'edit',
+      onGoBack: () => fetchFarmData() // Refresh data when returning
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -208,10 +216,10 @@ export default function FarmDashboardScreen({ navigation }) {
               styles.orderRow, 
               pressed && { opacity: 0.7 }
             ]}
-            onPress={() => navigation.navigate('ProductDetail', { product })}
+            onPress={() => handleProductPress(product)}
           >
             <Image 
-              source={product.image ? { uri: product.image } : productImages[idx % productImages.length]} 
+              source={product.images?.[0] ? { uri: product.images[0] } : productImages[idx % productImages.length]} 
               style={styles.orderImg} 
             />
             <View style={styles.orderText}>
@@ -229,7 +237,7 @@ export default function FarmDashboardScreen({ navigation }) {
             <Text style={styles.noProductsText}>No products added yet</Text>
             <TouchableOpacity 
               style={styles.addProductButton}
-              onPress={() => navigation.navigate('AddProductScreen')}
+              onPress={() => navigation.navigate('AddProductScreen', { mode: 'add' })}
             >
               <Text style={styles.addProductButtonText}>Add Your First Product</Text>
             </TouchableOpacity>
