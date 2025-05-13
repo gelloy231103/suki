@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useContext } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Image,
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  TouchableOpacity, 
+  Image, 
   RefreshControl,
   ActivityIndicator,
   SafeAreaView,
@@ -15,11 +15,9 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useNavigation } from '@react-navigation/native';
-import { AuthContext } from '../context/AuthContext';
 
 const ProductsScreen = () => {
   const navigation = useNavigation();
-  const { userData } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('products');
   const [products, setProducts] = useState([]);
   const [drafts, setDrafts] = useState([]);
@@ -27,24 +25,20 @@ const ProductsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch products only for the current user
+  // Fetch all products from Firestore (removed farmId filter)
   useEffect(() => {
-    if (!userData?.userId) return;
-
     const fetchProducts = () => {
       setLoading(true);
-
-      // Query for user's products (not drafts)
+      
+      // Query for all products (not drafts)
       const productsQuery = query(
         collection(db, 'products'),
-        where('userId', '==', userData.userId),
         where('status', '!=', 'draft')
       );
       
-      // Query for user's drafts
+      // Query for drafts
       const draftsQuery = query(
         collection(db, 'products'),
-        where('userId', '==', userData.userId),
         where('status', '==', 'draft')
       );
 
@@ -52,7 +46,7 @@ const ProductsScreen = () => {
         const productsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          formattedPrice: `₱${doc.data().price?.toFixed(2) || '0.00'}`,
+          formattedPrice: `₱${doc.data().price.toFixed(2)}`,
           discountPrice: doc.data().percentage 
             ? `₱${(doc.data().price * (1 - doc.data().percentage/100)).toFixed(2)}`
             : null
@@ -66,7 +60,7 @@ const ProductsScreen = () => {
         const draftsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          formattedPrice: `₱${doc.data().price?.toFixed(2) || '0.00'}`
+          formattedPrice: `₱${doc.data().price.toFixed(2)}`
         }));
         setDrafts(draftsData);
       });
@@ -78,7 +72,7 @@ const ProductsScreen = () => {
     };
 
     fetchProducts();
-  }, [userData?.userId]);
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -86,20 +80,20 @@ const ProductsScreen = () => {
   };
 
   // Filter products based on search query
-  const filteredProducts = products.filter(product =>
+  const filteredProducts = products.filter(product => 
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredDrafts = drafts.filter(draft =>
+  const filteredDrafts = drafts.filter(draft => 
     draft.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     draft.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     draft.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const renderProductItem = ({ item }) => (
-    <TouchableOpacity
+    <TouchableOpacity 
       style={styles.productContainer}
       onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
     >
@@ -130,7 +124,7 @@ const ProductsScreen = () => {
             item.status === 'seasonal' && styles.statusSeasonal,
           ]}>
             <Text style={styles.statusText}>
-              {item.status === 'available' ? 'In Stock' :
+              {item.status === 'available' ? 'In Stock' : 
                item.status === 'sold-out' ? 'Sold Out' : 'Seasonal'}
             </Text>
           </View>
@@ -139,7 +133,7 @@ const ProductsScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-
+      
       <View style={styles.priceContainer}>
         {item.percentage > 0 ? (
           <>
@@ -183,9 +177,9 @@ const ProductsScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Modern Header */}
+      {/* Modern Header with Back Button */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.navigate('FarmDashboard')}
         >
@@ -195,7 +189,7 @@ const ProductsScreen = () => {
         <View style={styles.headerRight} />
       </View>
 
-      {/* Search Bar with modern styling */}
+      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
         <TextInput
@@ -206,16 +200,13 @@ const ProductsScreen = () => {
           onChangeText={setSearchQuery}
         />
         {searchQuery ? (
-          <TouchableOpacity 
-            onPress={() => setSearchQuery('')}
-            style={styles.clearButton}
-          >
-            <Ionicons name="close-circle" size={20} color="#999" />
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close" size={20} color="#999" />
           </TouchableOpacity>
         ) : null}
       </View>
 
-      {/* Tab Navigation with improved styling */}
+      {/* Tab Navigation */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
           style={[styles.tabButton, activeTab === 'products' && styles.activeTab]}
@@ -238,7 +229,7 @@ const ProductsScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Product List with empty state */}
+      {/* Product List */}
       <FlatList
         data={activeTab === 'products' ? filteredProducts : filteredDrafts}
         renderItem={renderProductItem}
@@ -256,29 +247,19 @@ const ProductsScreen = () => {
             <Ionicons name="leaf-outline" size={48} color="#9DCD5A" />
             <Text style={styles.emptyText}>
               {activeTab === 'products' 
-                ? searchQuery ? 'No matching products' : 'No products yet'
+                ? 'No products found' 
                 : 'No drafts saved'}
             </Text>
             <Text style={styles.emptySubtext}>
               {activeTab === 'products' 
-                ? searchQuery ? 'Try a different search term' : 'Add your first product to get started'
+                ? searchQuery ? 'Try a different search' : 'Add your first product to get started'
                 : 'Save products as drafts to continue later'}
             </Text>
-            {!searchQuery && (
-              <TouchableOpacity 
-                style={styles.addFirstButton}
-                onPress={() => navigation.navigate('AddProductScreen')}
-              >
-                <Text style={styles.addFirstButtonText}>
-                  {activeTab === 'products' ? 'Add First Product' : 'Create Draft'}
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
         }
       />
       
-      {/* Floating Action Button */}
+      {/* Add Product Button */}
       <TouchableOpacity 
         style={styles.addButton}
         onPress={() => navigation.navigate('AddProductScreen')}
@@ -292,15 +273,15 @@ const ProductsScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
   },
-  // Header Styles
+  // Modern Header Styles
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -309,12 +290,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    borderBottomColor: '#f0f0f0',
   },
   backButton: {
     padding: 8,
@@ -331,14 +307,11 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
     paddingHorizontal: 16,
     margin: 16,
     height: 48,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    elevation: 1,
   },
   searchIcon: {
     marginRight: 8,
@@ -348,49 +321,43 @@ const styles = StyleSheet.create({
     height: '100%',
     fontSize: 16,
     color: '#333',
-    fontFamily: 'Poppins-Regular',
-  },
-  clearButton: {
-    padding: 4,
   },
   // Tab Navigation
   tabContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
     marginBottom: 8,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
     position: 'relative',
   },
   activeTab: {
-    backgroundColor: '#f1f8e9',
+    // Styles applied when tab is active
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'Poppins-Medium',
     color: '#888',
   },
   activeTabText: {
-    color: '#9DCD5A',
+    color: '#333',
     fontFamily: 'Poppins-SemiBold',
   },
   activeTabIndicator: {
     position: 'absolute',
-    bottom: 0,
-    height: 3,
-    width: '100%',
+    bottom: -1,
+    height: 2,
+    width: '50%',
     backgroundColor: '#9DCD5A',
   },
   // Product List
   listContent: {
-    paddingHorizontal: 16,
+    padding: 16,
     paddingBottom: 80,
   },
   // Product Card
@@ -398,10 +365,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    elevation: 1,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   productHeader: {
     flexDirection: 'row',
@@ -444,7 +413,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: '#e8f5e9',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
     borderRadius: 4,
     marginTop: 4,
   },
@@ -492,7 +461,6 @@ const styles = StyleSheet.create({
     color: '#999',
     textDecorationLine: 'line-through',
     marginRight: 8,
-    fontFamily: 'Poppins-Regular',
   },
   discountedPrice: {
     fontSize: 18,
@@ -535,10 +503,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
-    marginTop: 40,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
     marginTop: 16,
@@ -549,21 +516,6 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 8,
     textAlign: 'center',
-    fontFamily: 'Poppins-Regular',
-    maxWidth: '80%',
-  },
-  addFirstButton: {
-    marginTop: 20,
-    backgroundColor: '#9DCD5A',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    elevation: 2,
-  },
-  addFirstButtonText: {
-    color: 'white',
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 14,
   },
   // Add Button
   addButton: {
