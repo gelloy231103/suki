@@ -42,6 +42,7 @@ import BarnIntro from './screens/barnIntro.js';
 import OrderManagementScreen from './screens/OrderManagementScreen.js';
 import Payment from './screens/payment.js';
 import OrderConfirmation from './screens/OrderConfirmation.js';
+import OrderListScreen from './screens/orderList.js';
 
 const Stack = createStackNavigator();
 
@@ -228,11 +229,6 @@ const App = () => {
             <Stack.Screen
             name="Payment"
             component={Payment}
-            options={{ headerShown: false }}
-            />
-            <Stack.Screen
-            name="OrderConfirmation"
-            component={OrderConfirmation}
             options={{ headerShown: false }}
             />
           </Stack.Navigator>

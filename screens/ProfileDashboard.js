@@ -15,8 +15,9 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
-import { collection, query, where, getDocs, orderBy, doc, deleteDoc, writeBatch, onSnapshot, getDoc   } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, deleteDoc, writeBatch, onSnapshot, getDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
+import { signOut } from 'firebase/auth';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { useIsFocused } from '@react-navigation/native';
 
@@ -149,6 +150,40 @@ export default function DashboardScreen({navigation, route}) {
   const [balance, setBalance] = useState(null); 
   const [profilePicUrl, setProfilePicUrl] = useState(null); 
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
+  const showLogoutConfirmation = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Log Out',
+          onPress: handleLogout,
+          style: 'destructive',
+        },
+      ],
+      {
+        cancelable: true,
+        userInterfaceStyle: 'light',
+      }
+    );
+  };
 
   const fetchPaymentMethods = async () => {
     try {
@@ -182,22 +217,20 @@ export default function DashboardScreen({navigation, route}) {
   
       const balanceRef = doc(db, 'users', userId, 'wallet', 'balance');
   
-      // Listen to real-time updates
       const unsubscribe = onSnapshot(balanceRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setBalance(data.currentBalance || 0); // Update the balance with currentBalance from Firestore
+          setBalance(data.currentBalance || 0);
         } else {
           console.log('No balance document found');
-          setBalance(0); // If no document, set balance to 0
+          setBalance(0);
         }
       });
   
-      // Cleanup the listener when the component is unmounted or if the screen is not focused
       return () => unsubscribe();
     };
 
-        const fetchProfilePicture = async () => {
+    const fetchProfilePicture = async () => {
       try {
         if (!userData?.userId) return;
         
@@ -211,7 +244,6 @@ export default function DashboardScreen({navigation, route}) {
       }
     };
 
-  
     if (isFocused) {
       fetchBalance();
       fetchProfilePicture();
@@ -227,19 +259,17 @@ export default function DashboardScreen({navigation, route}) {
       const userId = auth.currentUser.uid;
       if (!userId) return;
   
-      // First set all cards to default: false
       const batch = writeBatch(db);
       paymentMethods.forEach(function(card) {
         const cardRef = doc(db, 'users', userId, 'paymentMethods', card.id);
         batch.update(cardRef, { isDefault: false });
       });
       
-      // Then set the selected card to default: true
       const selectedCardRef = doc(db, 'users', userId, 'paymentMethods', cardId);
       batch.update(selectedCardRef, { isDefault: true });
       
       await batch.commit();
-      fetchPaymentMethods(); // Refresh the cards
+      fetchPaymentMethods();
     } catch (error) {
       console.error("Error updating default card:", error);
       Alert.alert("Error", "Failed to update default card. Please try again.");
@@ -285,45 +315,40 @@ export default function DashboardScreen({navigation, route}) {
     setVisibleCount(prev => prev + 2);
   };
 
-    const Action = memo(({ icon, label, onPress }) => (
-      <TouchableOpacity style={styles.action} onPress={onPress}>
-        <MaterialCommunityIcons name={icon} size={24} color="#8CC63F" />
-        <Text style={styles.actionText}>{label}</Text>
-      </TouchableOpacity>
-    ));
+  const Action = memo(({ icon, label, onPress }) => (
+    <TouchableOpacity style={styles.action} onPress={onPress}>
+      <MaterialCommunityIcons name={icon} size={24} color="#8CC63F" />
+      <Text style={styles.actionText}>{label}</Text>
+    </TouchableOpacity>
+  ));
 
-    const checkFarmAndNavigate = async () => {
+  const checkFarmAndNavigate = async () => {
     try {
-    const userId = auth.currentUser?.uid;
-    if (!userId) {
-      navigation.navigate('Login');
-      return;
-    }
-
-    // Check if farm document exists
-    const farmRef = doc(db, 'farms', userId);
-    const farmSnap = await getDoc(farmRef);
-
-    if (!farmSnap.exists()) {
-      // If farm doesn't exist, go to BarnIntro and prevent going back
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'BarnIntro' }],
-      });
-    } else {
-      // If farm exists, go to FarmDashboard
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'FarmDashboard' }],
-      });
-    }
-      } catch (error) {
-        console.error('Error checking farm:', error);
-        // Fallback navigation in case of error
-        navigation.navigate('FarmDashboard');
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        navigation.navigate('Login');
+        return;
       }
-    };
 
+      const farmRef = doc(db, 'farms', userId);
+      const farmSnap = await getDoc(farmRef);
+
+      if (!farmSnap.exists()) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'BarnIntro' }],
+        });
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'FarmDashboard' }],
+        });
+      }
+    } catch (error) {
+      console.error('Error checking farm:', error);
+      navigation.navigate('FarmDashboard');
+    }
+  };
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -500,8 +525,22 @@ export default function DashboardScreen({navigation, route}) {
           {/* Other Activities */}
           <SectionHeader title="Other Activities" />
           <View style={styles.otherActs}>
-            {[{ label: 'My Favorites', icon: 'heart-outline' }, { label: 'Buy Again', icon: 'basket' }, { label: 'Hot Deals', icon: 'fire' }].map((item, idx) => (
-              <TouchableOpacity key={idx} style={styles.otherRow}>
+            {[
+              { label: 'My Favorites', icon: 'heart-outline' }, 
+              { label: 'Buy Again', icon: 'basket' }, 
+              { label: 'Hot Deals', icon: 'fire' },
+              { label: 'Settings', icon: 'cog-outline', onPress: () => navigation.navigate('Settings') },
+              { 
+                label: 'Log Out', 
+                icon: 'logout', 
+                onPress: showLogoutConfirmation
+              }
+            ].map((item, idx) => (
+              <TouchableOpacity 
+                key={idx} 
+                style={styles.otherRow}
+                onPress={item.onPress || (() => {})}
+              >
                 <MaterialCommunityIcons name={item.icon} size={22} color="#8CC63F" />
                 <Text style={styles.otherLabel}>  {item.label}</Text>
                 <Ionicons name="chevron-forward" size={20} color="gray" />
@@ -823,5 +862,4 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 5,
     borderBottomLeftRadius: 5,
   },
-  
 });
