@@ -217,11 +217,6 @@ const App = () => {
             component={ProductsScreen}
             options={{ headerShown: false }}
             />
-            <Stack.Screen
-            name="ListOfProducts"
-            component={ListOfProducts}
-            options={{ headerShown: false }}
-            />
           </Stack.Navigator>
         </NavigationContainer>
       </PaperProvider>
