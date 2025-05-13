@@ -8,8 +8,7 @@ import {
   Image, 
   RefreshControl,
   ActivityIndicator,
-  SafeAreaView,
-  TextInput
+  Animated
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
@@ -26,20 +25,18 @@ const ProductsScreen = () => {
 
   const currentFarmId = "farm456";
 
-  // Fetch all products from Firestore (removed farmId filter)
   useEffect(() => {
     const fetchProducts = () => {
       setLoading(true);
-      
-      // Query for all products (not drafts)
       const productsQuery = query(
         collection(db, 'products'),
+        where('farmId', '==', currentFarmId),
         where('status', '!=', 'draft')
       );
       
-      // Query for drafts
       const draftsQuery = query(
         collection(db, 'products'),
+        where('farmId', '==', currentFarmId),
         where('status', '==', 'draft')
       );
 
@@ -47,9 +44,9 @@ const ProductsScreen = () => {
         const productsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          formattedPrice: `₱${doc.data().price.toFixed(2)}`,
-          discountPrice: doc.data().percentage 
-            ? `₱${(doc.data().price * (1 - doc.data().percentage/100)).toFixed(2)}`
+          formattedPrice: `₱${doc.data().price.toFixed(2)} / ${doc.data().unit.toLowerCase()}`,
+          discountPrice: doc.data().discount?.percentage 
+            ? `₱${(doc.data().price * (1 - doc.data().discount.percentage/100)).toFixed(2)}`
             : null
         }));
         setProducts(productsData);
@@ -66,7 +63,7 @@ const ProductsScreen = () => {
         const draftsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          formattedPrice: `₱${doc.data().price.toFixed(2)}`
+          formattedPrice: `₱${doc.data().price.toFixed(2)} / ${doc.data().unit.toLowerCase()}`
         }));
         setDrafts(draftsData);
       });
@@ -82,21 +79,7 @@ const ProductsScreen = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // The useEffect will automatically refetch when refreshing changes
   };
-
-  // Filter products based on search query
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredDrafts = drafts.filter(draft => 
-    draft.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    draft.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    draft.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const renderProductItem = ({ item }) => (
     <Animated.View style={{ opacity: fadeAnim }}>
@@ -129,45 +112,37 @@ const ProductsScreen = () => {
                   </Text>
                 )}
               </View>
-            )}
-          </View>
-        </View>
-        <View style={styles.statusContainer}>
-          <View style={[
-            styles.statusBadge,
-            item.status === 'available' && styles.statusAvailable,
-            item.status === 'sold-out' && styles.statusSoldOut,
-            item.status === 'seasonal' && styles.statusSeasonal,
-          ]}>
-            <Text style={styles.statusText}>
-              {item.status === 'available' ? 'In Stock' : 
-               item.status === 'sold-out' ? 'Sold Out' : 'Seasonal'}
-            </Text>
-          </View>
-          <TouchableOpacity>
-            <MaterialIcons name="more-vert" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
-      </View>
-      
-      <View style={styles.priceContainer}>
-        {item.percentage > 0 ? (
-          <>
-            <Text style={styles.originalPrice}>{item.formattedPrice}</Text>
-            <Text style={styles.discountedPrice}>{item.discountPrice}</Text>
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>{item.percentage}% OFF</Text>
             </View>
-          </>
-        ) : (
-          <Text style={styles.productPrice}>{item.formattedPrice}</Text>
-        )}
-      </View>
-      
-      <View style={styles.detailsContainer}>
-        <View style={styles.detailItem}>
-          <Ionicons name="pricetag" size={16} color="#9DCD5A" />
-          <Text style={styles.detailValue}>{item.unit || 'kg'}</Text>
+          </View>
+          <View style={styles.statusContainer}>
+            <View style={[
+              styles.statusBadge,
+              item.status === 'available' && styles.statusAvailable,
+              item.status === 'sold-out' && styles.statusSoldOut,
+              item.status === 'seasonal' && styles.statusSeasonal,
+            ]}>
+              <Text style={styles.statusText}>
+                {item.status === 'available' ? 'In Stock' : 
+                 item.status === 'sold-out' ? 'Sold Out' : 'Seasonal'}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.moreButton}>
+              <MaterialIcons name="more-vert" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        <View style={styles.stockContainer}>
+          <View style={styles.stockInfo}>
+            <Text style={styles.stockLabel}>Available Stock</Text>
+            <Text style={styles.stockValue}>{item.stock} {item.unit.toLowerCase()}</Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { 
+              width: `${Math.min(100, (item.stock / (item.stock + 10)) * 100)}%`,
+              backgroundColor: item.status === 'available' ? '#9DCD5A' : '#FF6B6B'
+            }]} />
+          </View>
         </View>
         
         {item.discount?.percentage > 0 && (
@@ -188,62 +163,33 @@ const ProductsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {/* Modern Header with Back Button */}
+    <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.navigate('FarmDashboard')}
-        >
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>My Products</Text>
-        <View style={styles.headerRight} />
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search products..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery ? (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close" size={20} color="#999" />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'products' && styles.activeTab]}
-          onPress={() => setActiveTab('products')}
-        >
-          <Text style={[styles.tabText, activeTab === 'products' && styles.activeTabText]}>
-            Products ({products.length})
-          </Text>
-          {activeTab === 'products' && <View style={styles.activeTabIndicator} />}
-        </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'drafts' && styles.activeTab]}
-          onPress={() => setActiveTab('drafts')}
-        >
-          <Text style={[styles.tabText, activeTab === 'drafts' && styles.activeTabText]}>
-            Drafts ({drafts.length})
-          </Text>
-          {activeTab === 'drafts' && <View style={styles.activeTabIndicator} />}
-        </TouchableOpacity>
+        <View style={styles.tabContainer}>
+          <TouchableOpacity 
+            style={[styles.tabButton, activeTab === 'products' && styles.activeTab]}
+            onPress={() => setActiveTab('products')}
+          >
+            <Text style={[styles.tabText, activeTab === 'products' && styles.activeTabText]}>
+              Products ({products.length})
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.tabButton, activeTab === 'drafts' && styles.activeTab]}
+            onPress={() => setActiveTab('drafts')}
+          >
+            <Text style={[styles.tabText, activeTab === 'drafts' && styles.activeTabText]}>
+              Drafts ({drafts.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      {/* Product List */}
+      
       <FlatList
-        data={activeTab === 'products' ? filteredProducts : filteredDrafts}
+        data={activeTab === 'products' ? products : drafts}
         renderItem={renderProductItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
@@ -260,12 +206,12 @@ const ProductsScreen = () => {
             <Ionicons name="leaf-outline" size={48} color="#9DCD5A" />
             <Text style={styles.emptyText}>
               {activeTab === 'products' 
-                ? 'No products found' 
+                ? 'No products available' 
                 : 'No drafts saved'}
             </Text>
             <Text style={styles.emptySubtext}>
               {activeTab === 'products' 
-                ? searchQuery ? 'Try a different search' : 'Add your first product to get started'
+                ? 'Add your first product to get started' 
                 : 'Save products as drafts to continue later'}
             </Text>
           </View>
@@ -307,66 +253,34 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 26,
     fontFamily: 'Poppins-SemiBold',
-    color: '#333',
+    color: '#2C3E50',
+    marginBottom: 24,
   },
-  headerRight: {
-    width: 40,
-  },
-  // Search Bar
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    margin: 16,
-    height: 48,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: '100%',
-    fontSize: 16,
-    color: '#333',
-  },
-  // Tab Navigation
   tabContainer: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 12,
+    overflow: 'hidden',
+    height: 48,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
   },
   activeTab: {
-    // Styles applied when tab is active
-  },
-  tabText: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Medium',
-    color: '#888',
-  },
-  activeTabText: {
-    color: '#333',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  activeTabIndicator: {
-    position: 'absolute',
-    bottom: -1,
-    height: 2,
-    width: '50%',
     backgroundColor: '#9DCD5A',
   },
-  // Product List
+  tabText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: '#7F8C8D',
+  },
+  activeTabText: {
+    color: 'white',
+  },
   listContent: {
     padding: 16,
     paddingBottom: 80,
@@ -413,20 +327,16 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
-    color: '#333',
+    color: '#2C3E50',
     marginBottom: 4,
   },
   productCategory: {
     fontSize: 12,
     color: '#9DCD5A',
     fontFamily: 'Poppins-Medium',
+    marginBottom: 8,
   },
-  featuredTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#e8f5e9',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+  priceContainer: {
     marginTop: 4,
   },
   priceText: {
@@ -436,8 +346,9 @@ const styles = StyleSheet.create({
   },
   discountPriceText: {
     fontSize: 12,
+    color: '#E74C3C',
     fontFamily: 'Poppins-Medium',
-    color: '#2e7d32',
+    marginTop: 2,
   },
   statusContainer: {
     flexDirection: 'row',
@@ -473,33 +384,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 6,
   },
-  productPrice: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
-  },
-  originalPrice: {
-    fontSize: 14,
-    color: '#999',
-    textDecorationLine: 'line-through',
-    marginRight: 8,
-  },
-  discountedPrice: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#9DCD5A',
-    marginRight: 8,
-  },
-  discountBadge: {
-    backgroundColor: '#fff8e1',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  discountText: {
+  stockLabel: {
     fontSize: 12,
-    fontFamily: 'Poppins-Medium',
-    color: '#ff8f00',
+    color: '#7F8C8D',
+    fontFamily: 'Poppins-Regular',
+  },
+  stockValue: {
+    fontSize: 12,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#2C3E50',
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#ECF0F1',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
   discountTag: {
     position: 'absolute',
@@ -510,11 +413,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     transform: [{ rotate: '45deg' }],
   },
-  detailValue: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-    color: '#666',
-    marginLeft: 4,
+  discountTagText: {
+    fontSize: 10,
+    fontFamily: 'Poppins-SemiBold',
+    color: 'white',
+    textAlign: 'center',
   },
   emptyContainer: {
     flex: 1,
@@ -525,7 +428,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
-    color: '#333',
+    color: '#2C3E50',
     marginTop: 16,
     textAlign: 'center',
   },
