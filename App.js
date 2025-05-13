@@ -80,7 +80,7 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
-            initialRouteName="LandingScreen"
+            initialRouteName="AddProductScreen"
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
