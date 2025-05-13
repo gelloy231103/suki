@@ -22,8 +22,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-
-
 const AddProductScreen = ({ navigation, route }) => {
   const { product: existingProduct, mode = 'add' } = route.params || {};
   
@@ -34,6 +32,7 @@ const AddProductScreen = ({ navigation, route }) => {
   const [stock, setStock] = useState(existingProduct?.stock?.toString() || '');
   const [availableStock, setAvailableStock] = useState(existingProduct?.availableStock?.toString() || '');
   const [minimumOrder, setMinimumOrder] = useState(existingProduct?.minimumOrder?.toString() || '1');
+  const [unit, setUnit] = useState(existingProduct?.unit || 'kg');
   
   // Category & Type
   const [category, setCategory] = useState(existingProduct?.category || 'Fruits');
@@ -84,6 +83,26 @@ const AddProductScreen = ({ navigation, route }) => {
   
   const currentUserId = auth.currentUser?.uid;
   const currentFarmId = currentUserId;
+
+  // Unit options
+  const unitOptions = [
+    { label: 'Kilogram (kg)', value: 'kg' },
+    { label: 'Gram (g)', value: 'g' },
+    { label: 'Pound (lb)', value: 'lb' },
+    { label: 'Ounce (oz)', value: 'oz' },
+    { label: 'Piece', value: 'piece' },
+    { label: 'Pack', value: 'pack' },
+    { label: 'Bundle', value: 'bundle' },
+    { label: 'Dozen', value: 'dozen' },
+    { label: 'Liter (L)', value: 'L' },
+    { label: 'Milliliter (mL)', value: 'mL' },
+    { label: 'Gallon', value: 'gallon' },
+    { label: 'Pint', value: 'pint' },
+    { label: 'Box', value: 'box' },
+    { label: 'Bag', value: 'bag' },
+    { label: 'Crate', value: 'crate' },
+    { label: 'Tray', value: 'tray' },
+  ];
 
   // Initialize form with existing product data
   useEffect(() => {
@@ -188,6 +207,7 @@ const AddProductScreen = ({ navigation, route }) => {
     setAvailableStock('');
     setMinimumOrder('1');
     setPrice('');
+    setUnit('kg');
     setCategory('Fruits');
     setSubcategory('');
     setCropType('Fruits');
@@ -209,6 +229,43 @@ const AddProductScreen = ({ navigation, route }) => {
       totalPrice: 0,
       discountedPrice: 0
     });
+  };
+
+  const handleDeleteProduct = async () => {
+    Alert.alert(
+      'Delete Product',
+      'Are you sure you want to delete this product? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete product document
+              await deleteDoc(doc(db, 'products', existingProduct.id));
+              
+              // Delete associated images from storage
+              const deleteImagePromises = existingImages.map(async (imageUri) => {
+                const imageRef = ref(storage, imageUri);
+                await deleteObject(imageRef);
+              });
+              
+              await Promise.all(deleteImagePromises);
+              
+              Alert.alert('Success', 'Product deleted successfully');
+              navigation.goBack();
+            } catch (error) {
+              console.error('Error deleting product:', error);
+              Alert.alert('Error', 'Failed to delete product');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSaveProduct = async () => {
@@ -243,7 +300,7 @@ const AddProductScreen = ({ navigation, route }) => {
         cropType,
         description,
         price: parseFloat(price),
-        unit: 'Kilogram',
+        unit,
         stock: parseInt(stock),
         availableStock: parseInt(availableStock || stock),
         images: allImageUrls,
@@ -370,7 +427,7 @@ const AddProductScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* Header with back button */}
+      {/* Header with back button and delete button */}
       <View style={styles.header}>
         <TouchableOpacity 
           onPress={() => navigation.goBack()}
@@ -381,131 +438,156 @@ const AddProductScreen = ({ navigation, route }) => {
         <Text style={styles.headerTitle}>
           {mode === 'edit' ? 'Edit Product' : 'Add New Product'}
         </Text>
-        <View style={{ width: 24 }} />
+        {mode === 'edit' && (
+          <TouchableOpacity 
+            onPress={handleDeleteProduct}
+            style={styles.deleteButton}
+          >
+            <Ionicons name="trash" size={24} color="#FF3B30" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Product Images */}
-        <Text style={styles.sectionTitle}>Product Images</Text>
-        <View style={styles.imageSection}>
-          <TouchableOpacity style={styles.mainImage} onPress={pickImage}>
-            {(existingImages[0] || images[0]?.uri) ? (
-              <Image 
-                source={{ uri: existingImages[0] || images[0].uri }} 
-                style={styles.imagePreview} 
+        {/* Product Images Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Product Images</Text>
+          <View style={styles.imageSection}>
+            <TouchableOpacity style={styles.mainImage} onPress={pickImage}>
+              {(existingImages[0] || images[0]?.uri) ? (
+                <Image 
+                  source={{ uri: existingImages[0] || images[0].uri }} 
+                  style={styles.imagePreview} 
+                />
+              ) : (
+                <View style={styles.addImageContainer}>
+                  <Ionicons name="camera" size={32} color="#9DCD5A" />
+                  <Text style={styles.addImageText}>Add Main Image</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.additionalImages}>
+              {[...Array(5)].map((_, index) => {
+                const imageIndex = index + 1;
+                const existingImage = existingImages[imageIndex];
+                const newImage = images[imageIndex]?.uri;
+                
+                return (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.smallImageBox} 
+                    onPress={() => {
+                      if (existingImage || newImage || 
+                          (index === 0 && (existingImages[0] || images[0]?.uri)) || 
+                          (index > 0 && (existingImages[index] || images[index]?.uri))) {
+                        pickImage();
+                      }
+                    }}
+                  >
+                    {existingImage || newImage ? (
+                      <View style={{ position: 'relative' }}>
+                        <Image 
+                          source={{ uri: existingImage || newImage }} 
+                          style={styles.smallImagePreview} 
+                        />
+                        <TouchableOpacity
+                          style={styles.deleteImageButton}
+                          onPress={() => removeImage(existingImage || newImage, !!existingImage)}
+                        >
+                          <Ionicons name="close" size={16} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.addSmallImageContainer}>
+                        {(index === 0 && (existingImages[0] || images[0]?.uri)) || 
+                         (index > 0 && (existingImages[index] || images[index]?.uri)) ? (
+                          <Ionicons name="add" size={20} color="#9DCD5A" />
+                        ) : null}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        {/* Product Information Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Product Information</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Product Name *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter product name"
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Description *</Text>
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              placeholder="Enter product description"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+              <Text style={styles.label}>Price (₱) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                keyboardType="numeric"
+                value={price}
+                onChangeText={setPrice}
               />
-            ) : (
-              <View style={styles.addImageContainer}>
-                <Ionicons name="camera" size={32} color="#9DCD5A" />
-                <Text style={styles.addImageText}>Add Main Image</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.additionalImages}>
-            {[...Array(5)].map((_, index) => {
-              const imageIndex = index + 1;
-              const existingImage = existingImages[imageIndex];
-              const newImage = images[imageIndex]?.uri;
-              
-              return (
-                <TouchableOpacity 
-                  key={index} 
-                  style={styles.smallImageBox} 
-                  onPress={() => {
-                    if (existingImage || newImage || 
-                        (index === 0 && (existingImages[0] || images[0]?.uri)) || 
-                        (index > 0 && (existingImages[index] || images[index]?.uri))) {
-                      pickImage();
-                    }
-                  }}
-                >
-                  {existingImage || newImage ? (
-                    <View style={{ position: 'relative' }}>
-                      <Image 
-                        source={{ uri: existingImage || newImage }} 
-                        style={styles.smallImagePreview} 
-                      />
-                      <TouchableOpacity
-                        style={styles.deleteImageButton}
-                        onPress={() => removeImage(existingImage || newImage, !!existingImage)}
-                      >
-                        <Ionicons name="close" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <View style={styles.addSmallImageContainer}>
-                      {(index === 0 && (existingImages[0] || images[0]?.uri)) || 
-                       (index > 0 && (existingImages[index] || images[index]?.uri)) ? (
-                        <Ionicons name="add" size={20} color="#9DCD5A" />
-                      ) : null}
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+            </View>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Unit</Text>
+              <Picker
+                selectedValue={unit}
+                onValueChange={(itemValue) => setUnit(itemValue)}
+                style={styles.picker}
+                dropdownIconColor="#9DCD5A"
+              >
+                {unitOptions.map((option) => (
+                  <Picker.Item key={option.value} label={option.label} value={option.value} />
+                ))}
+              </Picker>
+            </View>
           </View>
-        </View>
 
-        {/* Product Information */}
-        <Text style={styles.sectionTitle}>Product Information</Text>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Product Name *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter product name"
-            value={name}
-            onChangeText={setName}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Description *</Text>
-          <TextInput
-            style={[styles.input, styles.multilineInput]}
-            placeholder="Enter product description"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={4}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-            <Text style={styles.label}>Price (₱) *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0.00"
-              keyboardType="numeric"
-              value={price}
-              onChangeText={setPrice}
-            />
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+              <Text style={styles.label}>Stock *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                keyboardType="numeric"
+                value={stock}
+                onChangeText={setStock}
+              />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Available Stock</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Same as stock"
+                keyboardType="numeric"
+                value={availableStock}
+                onChangeText={setAvailableStock}
+              />
+            </View>
           </View>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>Stock *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0"
-              keyboardType="numeric"
-              value={stock}
-              onChangeText={setStock}
-            />
-          </View>
-        </View>
 
-        <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-            <Text style={styles.label}>Available Stock</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Same as stock"
-              keyboardType="numeric"
-              value={availableStock}
-              onChangeText={setAvailableStock}
-            />
-          </View>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Minimum Order</Text>
             <TextInput
               style={styles.input}
@@ -517,197 +599,210 @@ const AddProductScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Category & Type */}
-        <Text style={styles.sectionTitle}>Category & Type</Text>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Category</Text>
-          <Picker
-            selectedValue={category}
-            onValueChange={(itemValue) => setCategory(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Fruits" value="Fruits" />
-            <Picker.Item label="Vegetables" value="Vegetables" />
-            <Picker.Item label="Herbs" value="Herbs" />
-            <Picker.Item label="Grains" value="Grains" />
-            <Picker.Item label="Livestock" value="Livestock" />
-            <Picker.Item label="Dairy" value="Dairy" />
-            <Picker.Item label="Other" value="Other" />
-          </Picker>
-        </View>
+        {/* Category & Type Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Category & Type</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Category</Text>
+            <Picker
+              selectedValue={category}
+              onValueChange={(itemValue) => setCategory(itemValue)}
+              style={styles.picker}
+              dropdownIconColor="#9DCD5A"
+            >
+              <Picker.Item label="Fruits" value="Fruits" />
+              <Picker.Item label="Vegetables" value="Vegetables" />
+              <Picker.Item label="Herbs" value="Herbs" />
+              <Picker.Item label="Grains" value="Grains" />
+              <Picker.Item label="Livestock" value="Livestock" />
+              <Picker.Item label="Dairy" value="Dairy" />
+              <Picker.Item label="Other" value="Other" />
+            </Picker>
+          </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Subcategory (optional)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Citrus, Leafy Greens"
-            value={subcategory}
-            onChangeText={setSubcategory}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Crop Type</Text>
-          <Picker
-            selectedValue={cropType}
-            onValueChange={(itemValue) => setCropType(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Fruits" value="Fruits" />
-            <Picker.Item label="Vegetables" value="Vegetables" />
-            <Picker.Item label="Herbs" value="Herbs" />
-            <Picker.Item label="Grains" value="Grains" />
-            <Picker.Item label="Livestock" value="Livestock" />
-            <Picker.Item label="Dairy" value="Dairy" />
-            <Picker.Item label="Other" value="Other" />
-          </Picker>
-        </View>
-
-        {/* Pricing & Discount */}
-        <Text style={styles.sectionTitle}>Pricing & Discount</Text>
-        <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-            <Text style={styles.label}>Discount % (optional)</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Subcategory (optional)</Text>
             <TextInput
               style={styles.input}
-              placeholder="0"
-              keyboardType="numeric"
-              value={percentage}
-              onChangeText={setPercentage}
+              placeholder="e.g. Citrus, Leafy Greens"
+              value={subcategory}
+              onChangeText={setSubcategory}
             />
           </View>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>Valid Until</Text>
-            <TouchableOpacity 
-              style={styles.dateInput}
-              onPress={() => setShowDatePicker(true)}
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Crop Type</Text>
+            <Picker
+              selectedValue={cropType}
+              onValueChange={(itemValue) => setCropType(itemValue)}
+              style={styles.picker}
+              dropdownIconColor="#9DCD5A"
             >
-              <Text>{validUntil ? validUntil.toDateString() : 'Select date'}</Text>
-              <Ionicons name="calendar" size={20} color="#9DCD5A" />
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={validUntil || new Date()}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) {
-                    setValidUntil(selectedDate);
-                  }
-                }}
+              <Picker.Item label="Fruits" value="Fruits" />
+              <Picker.Item label="Vegetables" value="Vegetables" />
+              <Picker.Item label="Herbs" value="Herbs" />
+              <Picker.Item label="Grains" value="Grains" />
+              <Picker.Item label="Livestock" value="Livestock" />
+              <Picker.Item label="Dairy" value="Dairy" />
+              <Picker.Item label="Other" value="Other" />
+            </Picker>
+          </View>
+        </View>
+
+        {/* Pricing & Discount Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Pricing & Discount</Text>
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+              <Text style={styles.label}>Discount % (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                keyboardType="numeric"
+                value={percentage}
+                onChangeText={setPercentage}
               />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Valid Until</Text>
+              <TouchableOpacity 
+                style={styles.dateInput}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text>{validUntil ? validUntil.toDateString() : 'Select date'}</Text>
+                <Ionicons name="calendar" size={20} color="#9DCD5A" />
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={validUntil || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) {
+                      setValidUntil(selectedDate);
+                    }
+                  }}
+                />
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Delivery Options Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Delivery Options</Text>
+          <View style={styles.deliveryOptions}>
+            <TouchableOpacity 
+              style={[
+                styles.deliveryOption,
+                deliveryOptions.pickup && styles.selectedDeliveryOption
+              ]}
+              onPress={() => toggleDeliveryOption('pickup')}
+            >
+              <Ionicons 
+                name={deliveryOptions.pickup ? "radio-button-on" : "radio-button-off"} 
+                size={24} 
+                color={deliveryOptions.pickup ? "#8CC63F" : "#ccc"} 
+              />
+              <Text style={styles.deliveryOptionText}>Pickup</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[
+                styles.deliveryOption,
+                deliveryOptions.delivery && styles.selectedDeliveryOption
+              ]}
+              onPress={() => toggleDeliveryOption('delivery')}
+            >
+              <Ionicons 
+                name={deliveryOptions.delivery ? "radio-button-on" : "radio-button-off"} 
+                size={24} 
+                color={deliveryOptions.delivery ? "#8CC63F" : "#ccc"} 
+              />
+              <Text style={styles.deliveryOptionText}>Delivery</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[
+                styles.deliveryOption,
+                deliveryOptions.shipping && styles.selectedDeliveryOption
+              ]}
+              onPress={() => toggleDeliveryOption('shipping')}
+            >
+              <Ionicons 
+                name={deliveryOptions.shipping ? "radio-button-on" : "radio-button-off"} 
+                size={24} 
+                color={deliveryOptions.shipping ? "#8CC63F" : "#ccc"} 
+              />
+              <Text style={styles.deliveryOptionText}>Shipping</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Product Status Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Product Status</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Status</Text>
+            <Picker
+              selectedValue={status}
+              onValueChange={(itemValue) => setStatus(itemValue)}
+              style={styles.picker}
+              dropdownIconColor="#9DCD5A"
+            >
+              <Picker.Item label="Available" value="available" />
+              <Picker.Item label="Out of Stock" value="out_of_stock" />
+              <Picker.Item label="Coming Soon" value="coming_soon" />
+              <Picker.Item label="Seasonal" value="seasonal" />
+            </Picker>
+          </View>
+
+          <View style={styles.switchGroup}>
+            <Text style={styles.label}>Featured Product</Text>
+            <Switch
+              value={isFeatured}
+              onValueChange={setIsFeatured}
+              trackColor={{ false: "#767577", true: "#81b0ff" }}
+              thumbColor={isFeatured ? "#f5dd4b" : "#f4f3f4"}
+            />
+          </View>
+
+          <View style={styles.switchGroup}>
+            <Text style={styles.label}>Bundled Product</Text>
+            <Switch
+              value={isBundled}
+              onValueChange={setIsBundled}
+              trackColor={{ false: "#767577", true: "#81b0ff" }}
+              thumbColor={isBundled ? "#f5dd4b" : "#f4f3f4"}
+            />
+            {isBundled && (
+              <TouchableOpacity 
+                style={styles.bundleButton}
+                onPress={() => setShowBundleModal(true)}
+              >
+                <Text style={styles.bundleButtonText}>
+                  {bundleDetails.items.length > 0 
+                    ? `Edit Bundle (${bundleDetails.items.length} items)` 
+                    : 'Add Products to Bundle'}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         </View>
 
-        {/* Delivery Options */}
-        <Text style={styles.sectionTitle}>Delivery Options</Text>
-        <View style={styles.deliveryOptions}>
-          <TouchableOpacity 
-            style={[
-              styles.deliveryOption,
-              deliveryOptions.pickup && styles.selectedDeliveryOption
-            ]}
-            onPress={() => toggleDeliveryOption('pickup')}
-          >
-            <Ionicons 
-              name={deliveryOptions.pickup ? "radio-button-on" : "radio-button-off"} 
-              size={24} 
-              color={deliveryOptions.pickup ? "#8CC63F" : "#ccc"} 
+        {/* Tags Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Tags</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Product Tags (comma separated)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. organic, fresh, local"
+              value={tags}
+              onChangeText={setTags}
             />
-            <Text style={styles.deliveryOptionText}>Pickup</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[
-              styles.deliveryOption,
-              deliveryOptions.delivery && styles.selectedDeliveryOption
-            ]}
-            onPress={() => toggleDeliveryOption('delivery')}
-          >
-            <Ionicons 
-              name={deliveryOptions.delivery ? "radio-button-on" : "radio-button-off"} 
-              size={24} 
-              color={deliveryOptions.delivery ? "#8CC63F" : "#ccc"} 
-            />
-            <Text style={styles.deliveryOptionText}>Delivery</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[
-              styles.deliveryOption,
-              deliveryOptions.shipping && styles.selectedDeliveryOption
-            ]}
-            onPress={() => toggleDeliveryOption('shipping')}
-          >
-            <Ionicons 
-              name={deliveryOptions.shipping ? "radio-button-on" : "radio-button-off"} 
-              size={24} 
-              color={deliveryOptions.shipping ? "#8CC63F" : "#ccc"} 
-            />
-            <Text style={styles.deliveryOptionText}>Shipping</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Product Status */}
-        <Text style={styles.sectionTitle}>Product Status</Text>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Status</Text>
-          <Picker
-            selectedValue={status}
-            onValueChange={(itemValue) => setStatus(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Available" value="available" />
-            <Picker.Item label="Out of Stock" value="out_of_stock" />
-            <Picker.Item label="Coming Soon" value="coming_soon" />
-            <Picker.Item label="Seasonal" value="seasonal" />
-          </Picker>
-        </View>
-
-        <View style={styles.switchGroup}>
-          <Text style={styles.label}>Featured Product</Text>
-          <Switch
-            value={isFeatured}
-            onValueChange={setIsFeatured}
-            trackColor={{ false: "#767577", true: "#81b0ff" }}
-            thumbColor={isFeatured ? "#f5dd4b" : "#f4f3f4"}
-          />
-        </View>
-
-        <View style={styles.switchGroup}>
-          <Text style={styles.label}>Bundled Product</Text>
-          <Switch
-            value={isBundled}
-            onValueChange={setIsBundled}
-            trackColor={{ false: "#767577", true: "#81b0ff" }}
-            thumbColor={isBundled ? "#f5dd4b" : "#f4f3f4"}
-          />
-          {isBundled && (
-            <TouchableOpacity 
-              style={styles.bundleButton}
-              onPress={() => setShowBundleModal(true)}
-            >
-              <Text style={styles.bundleButtonText}>
-                {bundleDetails.items.length > 0 
-                  ? `Edit Bundle (${bundleDetails.items.length} items)` 
-                  : 'Add Products to Bundle'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Tags */}
-        <Text style={styles.sectionTitle}>Tags</Text>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Product Tags (comma separated)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. organic, fresh, local"
-            value={tags}
-            onChangeText={setTags}
-          />
+          </View>
         </View>
 
         {/* Submit Button */}

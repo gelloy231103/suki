@@ -11,15 +11,14 @@ import {
   Animated
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { collection, query, where, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ProductsScreen = () => {
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState('products');
   const [products, setProducts] = useState([]);
-  const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -372,7 +371,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontFamily: 'Poppins-Medium',
+    fontWeight: '500',
   },
   moreButton: {
     padding: 4,
