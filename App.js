@@ -82,7 +82,7 @@ const App = () => {
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator
-            initialRouteName="FarmDashboard"
+            initialRouteName="LandingScreen"
             screenOptions={{
               gestureEnabled: true,
               ...TransitionPresets.SlideFromRightIOS,
@@ -218,11 +218,7 @@ const App = () => {
             component={ProductsScreen}
             options={{ headerShown: false }}
             />
-            <Stack.Screen
-            name="OrderManagementScreen"
-            component={OrderManagementScreen}
-            options={{ headerShown: false }}
-            />
+
           </Stack.Navigator>
         </NavigationContainer>
       </PaperProvider>

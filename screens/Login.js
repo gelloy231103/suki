@@ -6,7 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView
 } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -26,7 +29,6 @@ const Login = ({navigation}) => {
     if (!email || !password) {
       alert('Please enter both email and password');
       return;
-      
     }
   
     setIsLoading(true);
@@ -50,12 +52,15 @@ const Login = ({navigation}) => {
             firstName: userData.basicInfo.firstName,
             lastName: userData.basicInfo.lastName,
             middleName: userData.basicInfo.middleName,
-            profilePicUrl: userData.profilePicUrl // Add this
+            profilePicUrl: userData.profilePicUrl
           }
         );
         {console.log(userData)}
         
-        navigation.navigate('OnBoarding');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTab' }],
+        });
       } else {
         throw new Error("User profile not found in database");
       }
@@ -77,67 +82,79 @@ const Login = ({navigation}) => {
     }
   };
 
-
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome back.</Text>
-      <Text style={styles.subtitle}>Glad to see you again!</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.innerContainer}>
+          <Text style={styles.title}>Welcome back.</Text>
+          <Text style={styles.subtitle}>Glad to see you again!</Text>
 
-      <Text style={styles.label}>Email or Username</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-      />
-
-      <Text style={styles.label}>Password</Text>
-      <View style={styles.passwordContainer}>
-        <TextInput
-          style={styles.inputPassword}
-          placeholder="Enter your password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-        />
-        <TouchableOpacity
-          onPress={() => setShowPassword(!showPassword)}
-        >
-          <Icon
-            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-            size={20}
-            color="#777"
+          <Text style={styles.label}>Email or Username</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
           />
 
-        </TouchableOpacity>
-      </View>
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.inputPassword}
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Icon
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color="#777"
+              />
+            </TouchableOpacity>
+          </View>
 
-      <TouchableOpacity style={styles.forgotPassword}>
-        <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.forgotPassword}>
+            <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+          </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={styles.loginButton} 
-        onPress={signIn}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.loginButtonText}>Login</Text>
-        )}
-      </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.loginButton} 
+            onPress={signIn}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Login</Text>
+            )}
+          </TouchableOpacity>
 
-       <View style={styles.registerContainer}>
-        <Text style={styles.registerText}>Don't have an account yet?</Text>
-        <TouchableOpacity>
-          <Text style={styles.registerNow}
-          onPress={() => navigation.navigate('Register')}> Register now</Text>
-        </TouchableOpacity>
-      </View>
-
-    </View>
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>Don't have an account yet?</Text>
+            <TouchableOpacity>
+              <Text 
+                style={styles.registerNow}
+                onPress={() => navigation.navigate('Register')}
+              >
+                Register now
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -146,9 +163,13 @@ export default Login;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
-    justifyContent: 'center',
     backgroundColor: '#fff',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+  },
+  innerContainer: {
+    padding: 24,
   },
   title: {
     marginTop: 100,
@@ -201,6 +222,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48, 
   },
   loginButtonText: {
     color: '#fff',
@@ -208,10 +231,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   registerContainer: {
-    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'flex-end',
+    marginTop: 20,
   },
   registerText: {
     color: '#777',
@@ -219,13 +241,5 @@ const styles = StyleSheet.create({
   registerNow: {
     color: '#9DCD5A',
     fontWeight: '600',
-  },
-  loginButton: {
-    backgroundColor: '#A4DC4C',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48, 
   },
 });

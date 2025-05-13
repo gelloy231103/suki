@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { 
   View, 
   Text, 
@@ -11,28 +11,53 @@ import {
   TouchableWithoutFeedback,
   FlatList,
   Platform,
-  Dimensions
+  Dimensions,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dialog, Portal, Button as PaperButton } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
+import { AuthContext } from '../context/AuthContext';
+import { db, storage } from '../config/firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import * as mime from 'react-native-mime-types';
 
 const { width } = Dimensions.get('window');
 
 const FarmProfileScreen = ({ navigation }) => {
-  // Initial state for farm profile
+  const { userData } = useContext(AuthContext);
+  const [isLoading, setIsLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+
+  // Initial empty state for farm profile
   const initialState = {
-    farmName: 'Green Valley Organic Farm',
-    ownerName: 'Aron Jeric Cao',
-    email: 'aronjericandrade@gmail.com',
-    phone: '+63 912 345 6789',
-    farmType: 'Organic Crop Farm',
-    farmAddress: '4 E Jacinto St., Sta. Elena, Marikina City, NCR',
-    farmSize: '5 hectares',
-    certification: 'Organic Certified',
-    yearsOperating: '8',
-    description: 'Specializing in organic vegetables and fruits with sustainable farming practices'
+    farmName: '',
+    ownerName: '',
+    email: '',
+    phone: '',
+    farmType: '',
+    farmAddress: {
+      street: '',
+      barangay: '',
+      city: '',
+      province: '',
+      region: '',
+      postalCode: '',
+      coordinates: { latitude: 0, longitude: 0 }
+    },
+    farmSize: '',
+    certification: '',
+    yearsOperating: 0,
+    description: '',
+    farmImageUrl: '',
+    rating: {
+      average: 0,
+      count: 0
+    },
+    isVerified: false,
+    status: 'active'
   };
 
   // State management
@@ -45,6 +70,7 @@ const FarmProfileScreen = ({ navigation }) => {
   const [dialogConfig, setDialogConfig] = useState({ title: '', message: '', actions: [] });
   const [farmImage, setFarmImage] = useState(require('../assets/images/farm-placeholder.png'));
   const [showFarmTypeModal, setShowFarmTypeModal] = useState(false);
+  const [newImageSelected, setNewImageSelected] = useState(false);
 
   const inputRefs = useRef({});
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData);
@@ -81,6 +107,124 @@ const FarmProfileScreen = ({ navigation }) => {
 
     if (!result.canceled) {
       setFarmImage({ uri: result.assets[0].uri });
+      setNewImageSelected(true);
+    }
+  };
+
+  // Fetch farm data from Firestore
+  const fetchFarmData = async () => {
+    if (!userData?.userId) return;
+    
+    try {
+      setIsLoading(true);
+      const farmRef = doc(db, 'farms', userData.userId);
+      const farmSnap = await getDoc(farmRef);
+      
+      if (farmSnap.exists()) {
+        const data = farmSnap.data();
+        setFormData(data);
+        setOriginalData(data);
+        
+        if (data.farmImageUrl) {
+          setFarmImage({ uri: data.farmImageUrl });
+        }
+      } else {
+        // Initialize with empty values if no document exists
+        setFormData({
+          ...initialState,
+          email: userData.email || '',
+          ownerName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim()
+        });
+        setOriginalData(initialState);
+      }
+    } catch (error) {
+      console.error('Error fetching farm data:', error);
+      showDialog('Error', 'Failed to load farm profile', [
+        { text: 'OK', onPress: hideDialog }
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Upload image to Firebase Storage
+  const uploadImage = async (uri) => {
+    if (!userData?.userId) return null;
+    
+    try {
+      setUploading(true);
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Delete previous image if exists
+      if (formData.farmImageUrl) {
+        const oldImageRef = ref(storage, formData.farmImageUrl);
+        try {
+          await deleteObject(oldImageRef);
+        } catch (error) {
+          console.log('No previous image to delete or error deleting:', error);
+        }
+      }
+      
+      // Upload new image
+      const fileExtension = uri.split('.').pop();
+      const fileName = `${userData.userId}_FarmProfilePic.${fileExtension}`;
+      const storageRef = ref(storage, `FarmsProfilePics/${fileName}`);
+      
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Save farm data to Firestore
+  const saveFarmData = async () => {
+    if (!userData?.userId) return;
+    
+    try {
+      setIsLoading(true);
+      let imageUrl = formData.farmImageUrl;
+      
+      // Upload new image if selected
+      if (newImageSelected && farmImage.uri) {
+        imageUrl = await uploadImage(farmImage.uri);
+      }
+      
+      const farmData = {
+        ...formData,
+        farmImageUrl: imageUrl || '',
+        userId: userData.userId,
+        updatedAt: new Date(),
+        createdAt: formData.createdAt || new Date()
+      };
+      
+      const farmRef = doc(db, 'farms', userData.userId);
+      await setDoc(farmRef, farmData, { merge: true });
+      
+      setOriginalData(farmData);
+      setFormData(farmData);
+      setNewImageSelected(false);
+      
+      showDialog('Success', 'Farm profile saved successfully', [
+        { text: 'OK', onPress: () => {
+              navigation.navigate('FarmDashboard');
+              hideDialog();
+            } }
+      ]);
+    } catch (error) {
+      console.error('Error saving farm data:', error);
+      showDialog('Error', 'Failed to save farm profile', [
+        { text: 'OK', onPress: hideDialog }
+      ]);
+    } finally {
+      setIsLoading(false);
+      setIsEditable(false);
     }
   };
 
@@ -120,13 +264,7 @@ const FarmProfileScreen = ({ navigation }) => {
           text: 'Save Changes', 
           onPress: () => {
             hideDialog();
-            setOriginalData(formData);
-            setIsEditable(false);
-            setValidationErrors({});
-            setFocusedField(null);
-            showDialog('Success', 'Your farm profile has been updated successfully', [
-              { text: 'OK', onPress: hideDialog }
-            ]);
+            saveFarmData();
           }
         },
       ]
@@ -140,7 +278,8 @@ const FarmProfileScreen = ({ navigation }) => {
     if (!formData.ownerName.trim()) errors.ownerName = 'Owner name is required';
     if (!validateEmail(formData.email)) errors.email = 'Invalid email address';
     if (!validatePhone(formData.phone)) errors.phone = 'Invalid phone number';
-    if (!formData.farmAddress.trim()) errors.farmAddress = 'Farm address is required';
+    if (!formData.farmAddress.street.trim()) errors.farmAddress = 'Farm address is required';
+    if (!formData.farmType.trim()) errors.farmType = 'Farm type is required';
     
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -151,12 +290,39 @@ const FarmProfileScreen = ({ navigation }) => {
     setShowFarmTypeModal(false);
   };
 
+  const handleAddressChange = (field, value) => {
+    setFormData({
+      ...formData,
+      farmAddress: {
+        ...formData.farmAddress,
+        [field]: value
+      }
+    });
+  };
+
+  // Load data when screen focuses or userData changes
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchFarmData();
+    });
+    
+    return unsubscribe;
+  }, [navigation, userData]);
+
   // Style getters
   const getInputStyle = (fieldName) => [
     styles.input,
     focusedField === fieldName && styles.inputFocused,
     validationErrors[fieldName] && styles.inputError
   ];
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4A7C59" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -174,6 +340,7 @@ const FarmProfileScreen = ({ navigation }) => {
           <TouchableOpacity 
             onPress={() => isEditable ? handleSave() : setIsEditable(true)}
             style={styles.editButton}
+            disabled={!formData.farmName && !formData.ownerName && !formData.email && !formData.phone}
           >
             <Text style={styles.editButtonText}>
               {isEditable ? 'Save' : 'Edit'}
@@ -227,28 +394,32 @@ const FarmProfileScreen = ({ navigation }) => {
                 styles.input,
                 styles.farmTypeInput,
                 focusedField === 'farmType' && styles.inputFocused,
+                validationErrors.farmType && styles.inputError
               ]}
               onPress={() => isEditable && (setFocusedField('farmType'), setShowFarmTypeModal(true))}
               disabled={!isEditable}
             >
-              <Text style={styles.inputText}>{formData.farmType}</Text>
+              <Text style={[styles.inputText, !formData.farmType && { color: '#aaa' }]}>
+                {formData.farmType || 'Select farm type'}
+              </Text>
               <MaterialIcons name="arrow-drop-down" size={24} color="#888" />
             </TouchableOpacity>
+            {validationErrors.farmType && (
+              <Text style={styles.errorText}>{validationErrors.farmType}</Text>
+            )}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Farm Address</Text>
+            <Text style={styles.label}>Street Address</Text>
             <TextInput
               style={getInputStyle('farmAddress')}
-              value={formData.farmAddress}
-              onChangeText={(text) => setFormData({ ...formData, farmAddress: text })}
+              value={formData.farmAddress.street}
+              onChangeText={(text) => handleAddressChange('street', text)}
               editable={isEditable}
-              placeholder="Enter farm address"
+              placeholder="Enter street address"
               placeholderTextColor="#aaa"
               onFocus={() => setFocusedField('farmAddress')}
               onBlur={() => setFocusedField(null)}
-              multiline
-              numberOfLines={3}
             />
             {validationErrors.farmAddress && (
               <Text style={styles.errorText}>{validationErrors.farmAddress}</Text>
@@ -257,30 +428,94 @@ const FarmProfileScreen = ({ navigation }) => {
 
           <View style={styles.row}>
             <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+              <Text style={styles.label}>Barangay</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.farmAddress.barangay}
+                onChangeText={(text) => handleAddressChange('barangay', text)}
+                editable={isEditable}
+                placeholder="Enter barangay"
+                placeholderTextColor="#aaa"
+              />
+            </View>
+
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <Text style={styles.label}>City</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.farmAddress.city}
+                onChangeText={(text) => handleAddressChange('city', text)}
+                editable={isEditable}
+                placeholder="Enter city"
+                placeholderTextColor="#aaa"
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+              <Text style={styles.label}>Province</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.farmAddress.province}
+                onChangeText={(text) => handleAddressChange('province', text)}
+                editable={isEditable}
+                placeholder="Enter province"
+                placeholderTextColor="#aaa"
+              />
+            </View>
+
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Region</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.farmAddress.region}
+                onChangeText={(text) => handleAddressChange('region', text)}
+                editable={isEditable}
+                placeholder="Enter region"
+                placeholderTextColor="#aaa"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Postal Code</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.farmAddress.postalCode}
+              onChangeText={(text) => handleAddressChange('postalCode', text)}
+              editable={isEditable}
+              placeholder="Enter postal code"
+              placeholderTextColor="#aaa"
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
               <Text style={styles.label}>Farm Size</Text>
               <TextInput
-                style={getInputStyle('farmSize')}
+                style={styles.input}
                 value={formData.farmSize}
                 onChangeText={(text) => setFormData({ ...formData, farmSize: text })}
                 editable={isEditable}
                 placeholder="e.g. 5 hectares"
                 placeholderTextColor="#aaa"
-                onFocus={() => setFocusedField('farmSize')}
-                onBlur={() => setFocusedField(null)}
               />
             </View>
 
             <View style={[styles.formGroup, { flex: 1 }]}>
               <Text style={styles.label}>Years Operating</Text>
               <TextInput
-                style={getInputStyle('yearsOperating')}
-                value={formData.yearsOperating}
-                onChangeText={(text) => setFormData({ ...formData, yearsOperating: text })}
+                style={styles.input}
+                value={formData.yearsOperating.toString()}
+                onChangeText={(text) => {
+                  const num = text ? parseInt(text) : 0;
+                  setFormData({ ...formData, yearsOperating: isNaN(num) ? 0 : num });
+                }}
                 editable={isEditable}
                 placeholder="e.g. 8"
                 placeholderTextColor="#aaa"
-                onFocus={() => setFocusedField('yearsOperating')}
-                onBlur={() => setFocusedField(null)}
                 keyboardType="numeric"
               />
             </View>
@@ -289,28 +524,24 @@ const FarmProfileScreen = ({ navigation }) => {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Certification</Text>
             <TextInput
-              style={getInputStyle('certification')}
+              style={styles.input}
               value={formData.certification}
               onChangeText={(text) => setFormData({ ...formData, certification: text })}
               editable={isEditable}
               placeholder="e.g. Organic Certified"
               placeholderTextColor="#aaa"
-              onFocus={() => setFocusedField('certification')}
-              onBlur={() => setFocusedField(null)}
             />
           </View>
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>Farm Description</Text>
             <TextInput
-              style={[styles.input, styles.textArea, focusedField === 'description' && styles.inputFocused]}
+              style={[styles.input, styles.textArea]}
               value={formData.description}
               onChangeText={(text) => setFormData({ ...formData, description: text })}
               editable={isEditable}
               placeholder="Tell customers about your farm"
               placeholderTextColor="#aaa"
-              onFocus={() => setFocusedField('description')}
-              onBlur={() => setFocusedField(null)}
               multiline
               numberOfLines={4}
             />
@@ -372,8 +603,14 @@ const FarmProfileScreen = ({ navigation }) => {
             {validationErrors.phone && (
               <Text style={styles.errorText}>{validationErrors.phone}</Text>
             )}
-          </View>
         </View>
+        </View>
+           <TouchableOpacity 
+            style={styles.saveButton} 
+            onPress={handleSave}
+          >
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          </TouchableOpacity>
 
         {/* Farm Type Selection Modal */}
         <Modal
@@ -458,6 +695,15 @@ const FarmProfileScreen = ({ navigation }) => {
           </Dialog>
         </Portal>
       </ScrollView>
+
+      {uploading && (
+        <View style={styles.uploadOverlay}>
+          <View style={styles.uploadContainer}>
+            <ActivityIndicator size="large" color="#4A7C59" />
+            <Text style={styles.uploadText}>Uploading Image...</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -475,6 +721,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 30,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
@@ -699,6 +951,40 @@ const styles = StyleSheet.create({
   },
   dialogPrimaryButton: {
     color: '#4A7C59',
+  },
+  uploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadContainer: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  uploadText: {
+    marginTop: 10,
+    fontFamily: 'Poppins-Medium',
+    color: '#2C3E50',
+  },
+    buttonContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    right: 16,
+  },
+  saveButton: {
+    backgroundColor: '#4CAF50', // Green color
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

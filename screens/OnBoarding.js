@@ -1,133 +1,132 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Dimensions,
-  Image,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  BackHandler,
-  Animated,
-  PanResponder
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, PanResponder, Animated } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
-const BarnIntro = () => {
-  const navigation = useNavigation();
+const slides = [
+  {
+    id: '1',
+    title: 'Find Local Farms Nearby',
+    description: 'Discover nearby farms and buy fresh produce directly from the source—fast, easy, and local.',
+    image: require('../assets/Slide1.png'), 
+  },
+  {
+    id: '2',
+    title: 'Connect with Farmers Directly',
+    description: 'Chat, order, and build relationships with real farmers—no middlemen, just real food.',
+    image: require('../assets/Slide2.png'), 
+  },
+  {
+    id: '3',
+    title: 'Get Fresh Produce Delivered',
+    description: 'Enjoy fresh, affordable farm goods delivered to your doorstep or ready for pickup.',
+    image: require('../assets/Slide3.png'), 
+  },
+];
+
+const OnBoarding = ({ navigation }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const pan = useRef(new Animated.ValueXY()).current;
-
-  const slides = [
-    {
-      id: '1',
-      title: 'Your Digital Barn',
-      description: 'Manage all farm operations in one modern interface',
-      image: require('../assets/images/barnIntro1.png')
-    },
-    {
-      id: '2',
-      title: 'Real-Time Insights',
-      description: 'Instant updates and alerts for your farm activities',
-      image: require('../assets/images/barnIntro2.png')
-    },
-    {
-      id: '3',
-      title: 'Smart Management',
-      description: 'Organize tasks and track progress effortlessly',
-      image: require('../assets/images/barnIntro3.png')
-    }
-  ];
-
-  // Disable hardware back button
-  useEffect(() => {
-    const backAction = () => true;
-    const backHandler = BackHandler.addEventListener(
-      'hardwareBackPress',
-      backAction
-    );
-    return () => backHandler.remove();
-  }, []);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: Animated.event(
         [null, { dx: pan.x }],
-        { useNativeDriver: false }
+        { useNativeDriver: false } // Keep this false for pan responder
       ),
       onPanResponderRelease: (e, gesture) => {
         if (gesture.dx > 50) {
-          // Swipe right - go to previous slide
           goToSlide(Math.max(currentSlide - 1, 0));
         } else if (gesture.dx < -50) {
-          // Swipe left - go to next slide
           handleNext();
         }
         Animated.spring(pan, {
           toValue: { x: 0, y: 0 },
-          useNativeDriver: false
+          useNativeDriver: true // Can be true here as it's a simple spring
         }).start();
       }
     })
   ).current;
 
   const handleNext = () => {
-    if (currentSlide < slides.length - 1) {
-      setCurrentSlide(currentSlide + 1);
-    } else {
-      navigation.navigate('EditFarmProfile');
-    }
+    // Fade out animation with native driver
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true
+    }).start(() => {
+      if (currentSlide < slides.length - 1) {
+        setCurrentSlide(currentSlide + 1);
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTab' }],
+        });
+        return; // Skip the fade-in if we're navigating away
+      }
+      // Fade in animation with native driver
+      fadeAnim.setValue(0); // Reset before animating
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true
+      }).start();
+    });
   };
 
   const goToSlide = (index) => {
-    setCurrentSlide(index);
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true
+    }).start(() => {
+      setCurrentSlide(index);
+      fadeAnim.setValue(0); // Reset before animating
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true
+      }).start();
+    });
   };
 
-  const handleSkip = () => {
-    navigation.navigate('EditFarmProfile');
-  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={styles.container}>
+      {/* Background Gradient */}
+      <View style={styles.background} />
       
-      {/* Skip Button */}
-      {currentSlide < slides.length - 1 && (
-        <TouchableOpacity 
-          style={styles.skipButton}
-          onPress={handleSkip}
-        >
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Swipeable Slide Content */}
+      {/* Animated Content */}
       <Animated.View 
         style={[
           styles.slideContainer,
-          { transform: [{ translateX: pan.x }] }
+          { 
+            transform: [{ translateX: pan.x }], // Non-native driver
+            opacity: fadeAnim // Native driver
+          }
         ]}
         {...panResponder.panHandlers}
       >
-        <View style={styles.imageContainer}>
+        <Animated.View style={{ opacity: fadeAnim }}>
           <Image 
             source={slides[currentSlide].image} 
-            style={styles.image} 
+            style={styles.slideImage} 
             resizeMode="contain"
           />
-        </View>
-        
+        </Animated.View>
         <View style={styles.textContainer}>
-          <Text style={styles.title}>{slides[currentSlide].title}</Text>
-          <Text style={styles.description}>{slides[currentSlide].description}</Text>
+          <Animated.Text style={[styles.title, { opacity: fadeAnim }]}>
+            {slides[currentSlide].title}
+          </Animated.Text>
+          <Animated.Text style={[styles.description, { opacity: fadeAnim }]}>
+            {slides[currentSlide].description}
+          </Animated.Text>
         </View>
       </Animated.View>
 
-      {/* Navigation Dots */}
+      {/* Navigation Dots - No animations */}
       <View style={styles.dotsContainer}>
         {slides.map((_, index) => (
           <TouchableOpacity
@@ -141,16 +140,17 @@ const BarnIntro = () => {
         ))}
       </View>
 
-      {/* Continue/Create Button */}
+      {/* Button - No animations */}
       <TouchableOpacity 
-        style={styles.button}
+        style={styles.button} 
         onPress={handleNext}
+        activeOpacity={0.8}
       >
         <Text style={styles.buttonText}>
-          {currentSlide === slides.length - 1 ? 'Create Barn Profile' : 'Continue'}
+          {currentSlide === slides.length - 1 ? 'Get Started' : 'Next'}
         </Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -160,47 +160,51 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 20,
-    paddingBottom: 40
+    paddingBottom: height * 0.08,
+    paddingTop: height * 0.05,
+  },
+  background: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.4,
+    backgroundColor: '#F8F8F8',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
   slideContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    paddingHorizontal: 20
-  },
-  imageContainer: {
-    width: width * 0.85,
-    height: height * 0.45,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30
-  },
-  image: {
-    width: '100%',
-    height: '100%'
+    paddingHorizontal: 30,
   },
   textContainer: {
-    paddingHorizontal: 40,
     alignItems: 'center',
-    marginTop: 20
+    marginTop: 30,
+  },
+  slideImage: {
+    width: width * 0.8,
+    height: width * 0.8,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 26,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#2D3436',
     textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: 34
+    marginBottom: 16,
+    fontFamily: 'Poppins-SemiBold',
+    lineHeight: 34,
   },
   description: {
     fontSize: 16,
-    fontFamily: 'Poppins-Regular',
-    color: '#666',
+    color: '#636E72',
     textAlign: 'center',
+    paddingHorizontal: 20,
     lineHeight: 24,
-    paddingHorizontal: 20
+    fontFamily: 'Poppins-Regular',
   },
   dotsContainer: {
     flexDirection: 'row',
@@ -211,46 +215,31 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E0E0E0',
-    marginHorizontal: 4
+    backgroundColor: '#DFE6E9',
+    marginHorizontal: 4,
   },
   activeDot: {
-    backgroundColor: '#8CC63F',
-    width: 20
+    backgroundColor: '#55A630',
+    width: 20,
   },
   button: {
-    backgroundColor: '#8CC63F',
-    marginHorizontal: 30,
+    backgroundColor: '#55A630',
     paddingVertical: 16,
+    paddingHorizontal: width * 0.3,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 40,
-    shadowColor: '#8CC63F',
+    shadowColor: '#55A630',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
-    width: width * 0.85
   },
   buttonText: {
     color: '#FFFFFF',
-    fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
-    letterSpacing: 0.5
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+    letterSpacing: 0.5,
   },
-  skipButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 1,
-    padding: 12
-  },
-  skipText: {
-    color: '#8CC63F',
-    fontFamily: 'Poppins-Medium',
-    fontSize: 16
-  }
 });
 
-export default BarnIntro;
+export default OnBoarding;
