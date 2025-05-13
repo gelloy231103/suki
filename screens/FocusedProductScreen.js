@@ -672,7 +672,6 @@ const FocusedProductScreen = () => {
         <TouchableOpacity 
           style={styles.buyNowButton}
           onPress={handleBuyNow}
-          onPress={handleBuyNow}
         >
           <Text style={styles.buyNowText}>BUY NOW</Text>
         </TouchableOpacity>
