@@ -22,14 +22,100 @@ import {
   writeBatch,
   addDoc
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import { AuthContext } from '../context/AuthContext';
+import * as ImagePicker from 'expo-image-picker';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage } from '../config/firebase';
 
 const ProfileScreen = ({ navigation }) => {
   const { userData, saveUserData } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [loadingAddresses, setLoadingAddresses] = useState(true);
-  const [saving, setSaving] = useState(false); // New state for save operation
+  const [saving, setSaving] = useState(false); 
+
+  const pickImage = async () => {
+  if (!isEditable) return;
+
+  try {
+    // Request permission to access the media library
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    // Launch the image picker
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      await uploadImage(uri);
+    }
+  } catch (error) {
+    console.error('Error picking image:', error);
+    showDialog('Error', 'Failed to pick image. Please try again.', [
+      { text: 'OK', onPress: hideDialog }
+    ]);
+  }
+};
+
+  const uploadImage = async (uri) => {
+    try {
+      setLoading(true);
+      
+      // Convert the image to blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Create a reference to the storage location
+      const storageRef = ref(storage, `ProfilePictures/${userData.userId}_profilePic`);
+      
+      // Upload the image
+      await uploadBytes(storageRef, blob);
+      
+      // Get the download URL
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      // Update the user document in Firestore
+      await updateDoc(doc(db, 'users', userData.userId), {
+        profilePicUrl: downloadURL
+      });
+      
+      // Update the AuthContext with the new profile picture URL
+      saveUserData(
+        formData.email || userData.email,
+        userData.userId,
+        {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          middleName: formData.middleName,
+          profilePicUrl: downloadURL // Add this
+        }
+      );
+      
+      // Update local state
+      setFormData(prev => ({ ...prev, profilePicUrl: downloadURL }));
+      setOriginalData(prev => ({ ...prev, profilePicUrl: downloadURL }));
+      
+      showDialog('Success', 'Profile picture updated successfully!', [
+        { text: 'OK', onPress: hideDialog }
+      ]);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      showDialog('Error', 'Failed to upload image. Please try again.', [
+        { text: 'OK', onPress: hideDialog }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
   
   // User profile state
   const [formData, setFormData] = useState({
@@ -69,6 +155,8 @@ const ProfileScreen = ({ navigation }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [visibleDialog, setVisibleDialog] = useState(false);
   const [dialogConfig, setDialogConfig] = useState({ title: '', message: '', actions: [] });
+
+  
 
   // Format date for display
   const formatDate = (date) => {
@@ -294,7 +382,7 @@ const ProfileScreen = ({ navigation }) => {
           onPress: async () => {
             setSaving(true); // Start loading indicator
             try {
-              // Prepare updated data
+              // Prepare updated data including profilePicUrl
               const updatedData = {
                 firstName: formData.firstName || "",
                 lastName: formData.lastName || "",
@@ -302,20 +390,22 @@ const ProfileScreen = ({ navigation }) => {
                 gender: formData.gender || "",
                 phone: formData.phone || "",
                 birthDate: formData.birthDate ? serverTimestamp(formData.birthDate) : null,
+                profilePicUrl: userData.profilePicUrl || null, // Add profilePicUrl to the update
                 lastUpdated: serverTimestamp()
               };
 
               // Update in Firebase
               await updateDoc(doc(db, 'users', userData.userId), updatedData);
 
-              // Also update the AuthContext with the new basic info
+              // Also update the AuthContext with the new data including profilePicUrl
               saveUserData(
                 formData.email || userData.email,
                 userData.userId,
                 {
                   firstName: formData.firstName,
                   lastName: formData.lastName,
-                  middleName: formData.middleName
+                  middleName: formData.middleName,
+                  profilePicUrl: userData.profilePicUrl // Include profilePicUrl
                 }
               );
 
@@ -330,7 +420,10 @@ const ProfileScreen = ({ navigation }) => {
                 await auth.currentUser.updatePassword(formData.password);
               }
 
-              setOriginalData(formData);
+              setOriginalData({
+                ...formData,
+                profilePicUrl: userData.profilePicUrl // Include profilePicUrl in originalData
+              });
               setIsEditable(false);
               setValidationErrors({});
               setFocusedField(null);
@@ -408,6 +501,7 @@ const ProfileScreen = ({ navigation }) => {
       </SafeAreaView>
     );
   }
+  
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -433,18 +527,32 @@ const ProfileScreen = ({ navigation }) => {
         </Text>
 
         <View style={styles.card}>
-          <TouchableOpacity style={styles.imageContainer}>
-            <Image
-              source={require('../assets/images/sampleUser.png')}
-              style={styles.profileImage}
-              resizeMode='contain'
-            />
-            <Text style={styles.addProfileText}>
-              Add New Profile +
-            </Text>
+          <TouchableOpacity 
+            style={styles.imageContainer}
+            onPress={pickImage}
+            disabled={!isEditable || loading}
+          >
+            {userData.profilePicUrl ? (
+              <Image
+                source={{ uri: userData.profilePicUrl }}
+                style={styles.profileImage}
+                resizeMode='cover'
+              />
+            ) : (
+              <Image
+                source={require('../assets/images/sampleUser.png')}
+                style={styles.profileImage}
+                resizeMode='contain'
+              />
+            )}
+            {isEditable && (
+              <Text style={styles.addProfileText}>
+                {userData.profilePicUrl ? 'Change Profile' : 'Add Profile Picture'}
+              </Text>
+            )}
           </TouchableOpacity>
 
-                    <View style={styles.infoSection}>
+          <View style={styles.infoSection}>
             {['firstName', 'lastName', 'middleName'].map((key, idx) => (
               <View key={idx}>
                 <Text style={styles.infoLabel}>

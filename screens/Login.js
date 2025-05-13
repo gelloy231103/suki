@@ -48,7 +48,8 @@ const Login = ({navigation}) => {
           {
             firstName: userData.basicInfo.firstName,
             lastName: userData.basicInfo.lastName,
-            middleName: userData.basicInfo.middleName
+            middleName: userData.basicInfo.middleName,
+            profilePicUrl: userData.profilePicUrl // Add this
           }
         );
         {console.log(userData)}

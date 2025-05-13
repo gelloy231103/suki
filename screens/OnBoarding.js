@@ -1,113 +1,158 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, PanResponder, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  Image,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  BackHandler,
+  Animated,
+  PanResponder
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-const slides = [
-  {
-    id: '1',
-    title: 'Find Local Farms Nearby',
-    description: 'Discover nearby farms and buy fresh produce directly from the source—fast, easy, and local.',
-    image: require('../assets/Slide1.png'), 
-  },
-  {
-    id: '2',
-    title: 'Connect with farmers directly',
-    description: 'Chat, order, and build relationships with real farmers—no middlemen, just real food.',
-    image: require('../assets/Slide2.png'), 
-  },
-  {
-    id: '3',
-    title: 'Get Fresh Produce Delivered',
-    description: 'Enjoy fresh, affordable farm goods delivered to your doorstep or ready for pickup.',
-    image: require('../assets/Slide3.png'), 
-  },
-];
+const BarnIntro = () => {
+  const navigation = useNavigation();
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const pan = useRef(new Animated.ValueXY()).current;
 
-const OnBoarding = ({ navigation }) => {
-    const [currentSlide, setCurrentSlide] = useState(0);
-    const pan = useRef(new Animated.ValueXY()).current;
-  
-    const panResponder = useRef(
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onPanResponderMove: Animated.event(
-          [null, { dx: pan.x }],
-          { useNativeDriver: false }
-        ),
-        onPanResponderRelease: (e, gesture) => {
-          if (gesture.dx > 50) {
-            // Swipe right - go to previous slide
-            goToSlide(Math.max(currentSlide - 1, 0));
-          } else if (gesture.dx < -50) {
-            // Swipe left - go to next slide
-            handleNext();
-          }
-          Animated.spring(pan, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: false
-          }).start();
+  const slides = [
+    {
+      id: '1',
+      title: 'Your Digital Barn',
+      description: 'Manage all farm operations in one modern interface',
+      image: require('../assets/images/barnIntro1.png')
+    },
+    {
+      id: '2',
+      title: 'Real-Time Insights',
+      description: 'Instant updates and alerts for your farm activities',
+      image: require('../assets/images/barnIntro2.png')
+    },
+    {
+      id: '3',
+      title: 'Smart Management',
+      description: 'Organize tasks and track progress effortlessly',
+      image: require('../assets/images/barnIntro3.png')
+    }
+  ];
+
+  // Disable hardware back button
+  useEffect(() => {
+    const backAction = () => true;
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+    return () => backHandler.remove();
+  }, []);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: Animated.event(
+        [null, { dx: pan.x }],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: (e, gesture) => {
+        if (gesture.dx > 50) {
+          // Swipe right - go to previous slide
+          goToSlide(Math.max(currentSlide - 1, 0));
+        } else if (gesture.dx < -50) {
+          // Swipe left - go to next slide
+          handleNext();
         }
-      })
-    ).current;
-  
-    const handleNext = () => {
-      if (currentSlide < slides.length - 1) {
-        setCurrentSlide(currentSlide + 1);
-      } else {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTab' }],
-        });
+        Animated.spring(pan, {
+          toValue: { x: 0, y: 0 },
+          useNativeDriver: false
+        }).start();
       }
-    };
-  
-    const goToSlide = (index) => {
-      setCurrentSlide(index);
-    };
-  
-    return (
-      <View style={styles.container}>
-        {/* Swipeable Slide Content */}
-        <Animated.View 
-          style={[
-            styles.slideContainer,
-            { transform: [{ translateX: pan.x }] }
-          ]}
-          {...panResponder.panHandlers}
+    })
+  ).current;
+
+  const handleNext = () => {
+    if (currentSlide < slides.length - 1) {
+      setCurrentSlide(currentSlide + 1);
+    } else {
+      navigation.navigate('EditFarmProfile');
+    }
+  };
+
+  const goToSlide = (index) => {
+    setCurrentSlide(index);
+  };
+
+  const handleSkip = () => {
+    navigation.navigate('EditFarmProfile');
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
+      {/* Skip Button */}
+      {currentSlide < slides.length - 1 && (
+        <TouchableOpacity 
+          style={styles.skipButton}
+          onPress={handleSkip}
         >
+          <Text style={styles.skipText}>Skip</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Swipeable Slide Content */}
+      <Animated.View 
+        style={[
+          styles.slideContainer,
+          { transform: [{ translateX: pan.x }] }
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <View style={styles.imageContainer}>
           <Image 
             source={slides[currentSlide].image} 
-            style={styles.slideImage} 
+            style={styles.image} 
             resizeMode="contain"
           />
+        </View>
+        
+        <View style={styles.textContainer}>
           <Text style={styles.title}>{slides[currentSlide].title}</Text>
           <Text style={styles.description}>{slides[currentSlide].description}</Text>
-        </Animated.View>
-  
-        {/* Next/Proceed Button */}
-        <TouchableOpacity style={styles.button} onPress={handleNext}>
-          <Text style={styles.buttonText}>
-            {currentSlide === slides.length - 1 ? 'Proceed' : 'Next'}
-          </Text>
-        </TouchableOpacity>
-  
-        {/* Navigation Dots */}
-        <View style={styles.dotsContainer}>
-          {slides.map((_, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.dot,
-                currentSlide === index && styles.activeDot,
-              ]}
-              onPress={() => goToSlide(index)}
-            />
-          ))}
         </View>
+      </Animated.View>
+
+      {/* Navigation Dots */}
+      <View style={styles.dotsContainer}>
+        {slides.map((_, index) => (
+          <TouchableOpacity
+            key={index}
+            style={[
+              styles.dot,
+              currentSlide === index && styles.activeDot,
+            ]}
+            onPress={() => goToSlide(index)}
+          />
+        ))}
       </View>
-    );
-  };
+
+      {/* Continue/Create Button */}
+      <TouchableOpacity 
+        style={styles.button}
+        onPress={handleNext}
+      >
+        <Text style={styles.buttonText}>
+          {currentSlide === slides.length - 1 ? 'Create Barn Profile' : 'Continue'}
+        </Text>
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -115,34 +160,47 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40
   },
   slideContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
+    paddingHorizontal: 20
   },
-  slideImage: {
-    width: width * 0.8,
-    height: width * 0.8,
-    marginBottom: 30,
+  imageContainer: {
+    width: width * 0.85,
+    height: height * 0.45,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 30
+  },
+  image: {
+    width: '100%',
+    height: '100%'
+  },
+  textContainer: {
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    marginTop: 20
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#403F3F',
+    fontSize: 26,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
     textAlign: 'center',
-    marginBottom: 16,
-    fontFamily: 'Poppins', 
+    marginBottom: 12,
+    lineHeight: 34
   },
   description: {
     fontSize: 16,
+    fontFamily: 'Poppins-Regular',
     color: '#666',
     textAlign: 'center',
-    paddingHorizontal: 20,
     lineHeight: 24,
+    paddingHorizontal: 20
   },
   dotsContainer: {
     flexDirection: 'row',
@@ -150,28 +208,49 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   dot: {
-    width: 40,
-    height: 15,
-    borderRadius: 5,
-    backgroundColor: '#CCCCCC',
-    marginHorizontal: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E0E0E0',
+    marginHorizontal: 4
   },
   activeDot: {
-    backgroundColor: '#9DCD5A',
+    backgroundColor: '#8CC63F',
+    width: 20
   },
   button: {
-    backgroundColor: '#9DCD5A',
-    paddingVertical: 15,
-    paddingHorizontal: 80,
-    borderRadius: 15,
-    marginTop: 5,
+    backgroundColor: '#8CC63F',
+    marginHorizontal: 30,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 40,
+    shadowColor: '#8CC63F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    width: width * 0.85
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 16,
+    letterSpacing: 0.5
   },
+  skipButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 1,
+    padding: 12
+  },
+  skipText: {
+    color: '#8CC63F',
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16
+  }
 });
 
-export default OnBoarding;
+export default BarnIntro;

@@ -10,6 +10,7 @@ export const AuthProvider = ({ children }) => {
     firstName: null,
     lastName: null,
     middleName: null,
+    profilePicUrl: null,
     isLoading: true,
   });
 
@@ -42,6 +43,7 @@ export const AuthProvider = ({ children }) => {
       firstName: profileData?.firstName || null,
       lastName: profileData?.lastName || null,
       middleName: profileData?.middleName || null,
+      profilePicUrl: profileData?.profilePicUrl || null, 
       isLoading: false
     };
     

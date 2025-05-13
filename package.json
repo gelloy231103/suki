@@ -31,6 +31,7 @@
     "expo-image-picker": "~16.0.6",
     "expo-linear-gradient": "~14.0.2",
     "expo-location": "~18.0.10",
+    "expo-notifications": "~0.29.14",
     "expo-status-bar": "~2.0.1",
     "firebase": "^11.7.1",
     "lottie-react-native": "7.1.0",
@@ -49,13 +50,12 @@
     "react-native-reanimated": "~3.16.1",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "^4.10.0",
+    "react-native-svg": "15.8.0",
     "react-native-swiper": "^1.6.0",
     "react-native-swiper-flatlist": "^3.2.5",
     "react-native-uuid": "^2.0.3",
     "react-native-vector-icons": "^10.2.0",
-    "zxcvbn": "^4.4.2",
-    "react-native-maps": "1.18.0",
-    "expo-notifications": "~0.29.14"
+    "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

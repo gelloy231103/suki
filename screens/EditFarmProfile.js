@@ -8,80 +8,60 @@ import {
   ScrollView, 
   StyleSheet, 
   Modal, 
-  TouchableWithoutFeedback, 
-  FlatList 
+  TouchableWithoutFeedback,
+  FlatList,
+  Platform,
+  Dimensions
 } from 'react-native';
-import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dialog, Portal, Button as PaperButton } from 'react-native-paper';
-import { Calendar } from 'react-native-calendars';
-import { format } from 'date-fns';
+import * as ImagePicker from 'expo-image-picker';
 
-const ProfileScreen = ({ navigation }) => {
-  // Initial state
+const { width } = Dimensions.get('window');
+
+const FarmProfileScreen = ({ navigation }) => {
+  // Initial state for farm profile
   const initialState = {
-    name: 'Aron Jeric Cao',
-    lName: 'Cao',
-    mName: '-',
-    gender: 'Crop Farm',
+    farmName: 'Green Valley Organic Farm',
+    ownerName: 'Aron Jeric Cao',
     email: 'aronjericandrade@gmail.com',
-    password: '',
-    billing1: '4 E Jacinto St., Sta. Elena, Marikina City, NCR',
+    phone: '+63 912 345 6789',
+    farmType: 'Organic Crop Farm',
+    farmAddress: '4 E Jacinto St., Sta. Elena, Marikina City, NCR',
+    farmSize: '5 hectares',
+    certification: 'Organic Certified',
+    yearsOperating: '8',
+    description: 'Specializing in organic vegetables and fruits with sustainable farming practices'
   };
 
   // State management
   const [formData, setFormData] = useState(initialState);
   const [originalData, setOriginalData] = useState(initialState);
-  const [isEditable, setIsEditable] = useState(true);
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date(2003, 8, 16));
+  const [isEditable, setIsEditable] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
-  const [showGenderModal, setShowGenderModal] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [visibleDialog, setVisibleDialog] = useState(false);
   const [dialogConfig, setDialogConfig] = useState({ title: '', message: '', actions: [] });
-
-  // Address management
-  const [showAddressModal, setShowAddressModal] = useState(false);
-  const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [currentAddressId, setCurrentAddressId] = useState(null);
-  const [addresses, setAddresses] = useState([{
-    id: '1',
-    street: '432 E Jochito St.',
-    region: 'NCR',
-    city: 'Marikina City',
-    barangay: 'Sta. Elena',
-    postalCode: '1800',
-    type: 'Billing Home Address 1',
-  }]);
-
-  const [newAddress, setNewAddress] = useState({
-    street: '',
-    region: '',
-    province: '',
-    city: '',
-    barangay: '',
-    postalCode: '',
-    type: 'Home',
-    isDefault: false
-  });
+  const [farmImage, setFarmImage] = useState(require('../assets/images/farm-placeholder.png'));
+  const [showFarmTypeModal, setShowFarmTypeModal] = useState(false);
 
   const inputRefs = useRef({});
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData);
 
-  // Gender options
-  const genderOptions = [
-    { value: 'Crop Farm', icon: 'male', iconLib: FontAwesome5, iconColor: '#4285F4' },
-    { value: 'Female', icon: 'female', iconLib: FontAwesome5, iconColor: '#EA4335' },
-    { value: 'Other', icon: 'gender-male-female', iconLib: MaterialCommunityIcons, iconColor: '#34A853' },
-    { value: 'Prefer not to say', icon: 'eye-off', iconLib: Feather, iconColor: '#9E9E9E' }
+  // Farm type options
+  const farmTypeOptions = [
+    { value: 'Organic Crop Farm', icon: 'leaf', iconLib: MaterialCommunityIcons, iconColor: '#4CAF50' },
+    { value: 'Livestock Farm', icon: 'cow', iconLib: MaterialCommunityIcons, iconColor: '#795548' },
+    { value: 'Poultry Farm', icon: 'egg', iconLib: MaterialCommunityIcons, iconColor: '#FFC107' },
+    { value: 'Dairy Farm', icon: 'cow', iconLib: MaterialCommunityIcons, iconColor: '#2196F3' },
+    { value: 'Aquaculture Farm', icon: 'fish', iconLib: MaterialCommunityIcons, iconColor: '#00BCD4' },
+    { value: 'Mixed Farm', icon: 'barn', iconLib: MaterialCommunityIcons, iconColor: '#9E9E9E' }
   ];
 
   // Validation functions
-  const validateName = (name) => /^[A-Za-z\s\-']{2,50}$/.test(name);
   const validateEmail = (email) => /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email);
-  const validatePassword = (password) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$%^&+=!]).{8,}$/.test(password);
+  const validatePhone = (phone) => /^\+?[\d\s-]{10,15}$/.test(phone);
 
   // Helper functions
   const showDialog = (title, message, actions) => {
@@ -91,10 +71,17 @@ const ProfileScreen = ({ navigation }) => {
 
   const hideDialog = () => setVisibleDialog(false);
 
-  const formatDate = (date) => format(date, 'MMMM d, yyyy');
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
 
-  const getAddressDisplay = (address) => {
-    return `${address.street}, ${address.barangay}, ${address.city}, ${address.region}, ${address.postalCode}`;
+    if (!result.canceled) {
+      setFarmImage({ uri: result.assets[0].uri });
+    }
   };
 
   // Event handlers
@@ -106,18 +93,18 @@ const ProfileScreen = ({ navigation }) => {
         [
           { text: 'Cancel', onPress: hideDialog },
           { 
-            text: 'Yes', 
+            text: 'Discard', 
             onPress: () => {
               hideDialog();
               setFormData(originalData);
               setIsEditable(false);
-              navigation.navigate('ProfileDashboard');
+              navigation.goBack();
             }
           },
         ]
       );
     } else {
-      navigation.navigate('ProfileDashboard');
+      navigation.goBack();
     }
   };
 
@@ -126,18 +113,18 @@ const ProfileScreen = ({ navigation }) => {
     
     showDialog(
       'Confirm Changes',
-      'Are you sure you want to save these changes?',
+      'Are you sure you want to save these changes to your farm profile?',
       [
         { text: 'Cancel', onPress: hideDialog },
         {
-          text: 'Yes', 
+          text: 'Save Changes', 
           onPress: () => {
             hideDialog();
             setOriginalData(formData);
             setIsEditable(false);
             setValidationErrors({});
             setFocusedField(null);
-            showDialog('Success', 'Your changes have been saved successfully', [
+            showDialog('Success', 'Your farm profile has been updated successfully', [
               { text: 'OK', onPress: hideDialog }
             ]);
           }
@@ -149,393 +136,300 @@ const ProfileScreen = ({ navigation }) => {
   const validateForm = () => {
     const errors = {};
     
-    if (!validateName(formData.name)) errors.name = 'Invalid first name';
-    if (!validateName(formData.lName)) errors.lName = 'Invalid last name';
-    if (formData.mName !== '-' && !validateName(formData.mName)) errors.mName = 'Invalid middle name';
+    if (!formData.farmName.trim()) errors.farmName = 'Farm name is required';
+    if (!formData.ownerName.trim()) errors.ownerName = 'Owner name is required';
     if (!validateEmail(formData.email)) errors.email = 'Invalid email address';
-    if (formData.password && !validatePassword(formData.password)) {
-      errors.password = 'Password must contain at least 8 characters, one uppercase, one lowercase, one number and one special character';
-    }
+    if (!validatePhone(formData.phone)) errors.phone = 'Invalid phone number';
+    if (!formData.farmAddress.trim()) errors.farmAddress = 'Farm address is required';
     
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const handleDateSelect = (day) => {
-    const newDate = new Date(day.dateString);
-    setSelectedDate(newDate);
-    setShowDatePicker(false);
-  };
-
-  const handleGenderSelect = (gender) => {
-    setFormData({ ...formData, gender });
-    setShowGenderModal(false);
-  };
-
-  const handleAddAddress = () => {
-    setIsEditingAddress(false);
-    setCurrentAddressId(null);
-    setNewAddress({
-      street: '',
-      region: '',
-      province: '',
-      city: '',
-      barangay: '',
-      postalCode: '',
-      type: 'Home',
-    });
-    setShowAddressModal(true);
-  };
-
-  const handleSaveAddress = () => {
-    if (isEditingAddress && currentAddressId) {
-      setAddresses(prevAddresses => 
-        prevAddresses.map(addr => 
-          addr.id === currentAddressId 
-            ? { ...newAddress, id: currentAddressId }
-            : newAddress.isDefault ? { ...addr, isDefault: false } : addr
-        )
-      );
-    } else {
-      const formattedAddress = {
-        id: Date.now().toString(),
-        ...newAddress
-      };
-
-      if (newAddress.isDefault) {
-        setAddresses(prev => 
-          prev.map(addr => ({ ...addr, isDefault: false }))
-          .concat(formattedAddress)
-        );
-      } else {
-        setAddresses(prev => [...prev, formattedAddress]);
-      }
-    }
-
-    setShowAddressModal(false);
-  };
-
-  const handleAddressSelect = (address) => {
-    setIsEditingAddress(true);
-    setCurrentAddressId(address.id);
-    setNewAddress({
-      street: address.street,
-      region: address.region,
-      province: address.province || '',
-      city: address.city,
-      barangay: address.barangay,
-      postalCode: address.postalCode,
-      type: address.type,
-      isDefault: address.isDefault
-    });
-    setShowAddressModal(true);
+  const handleFarmTypeSelect = (type) => {
+    setFormData({ ...formData, farmType: type });
+    setShowFarmTypeModal(false);
   };
 
   // Style getters
   const getInputStyle = (fieldName) => [
-    styles.inputBox,
-    focusedField === fieldName && { borderColor: '#9DCD5A', borderWidth: 1 },
-    validationErrors[fieldName] && { borderColor: 'red', borderWidth: 1 }
-  ];
-
-  const getInfoInputStyle = (fieldName) => [
-    styles.infoInput,
-    focusedField === fieldName && { borderBottomColor: '#9DCD5A', borderBottomWidth: 1 },
-    validationErrors[fieldName] && { borderBottomColor: 'red', borderBottomWidth: 1 }
+    styles.input,
+    focusedField === fieldName && styles.inputFocused,
+    validationErrors[fieldName] && styles.inputError
   ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleBackPress}>
-            <Ionicons name="arrow-back" size={24} color="black" />
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#4A7C59" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setIsEditable(!isEditable)}>
-            <Ionicons name={isEditable ? "checkmark" : "create"} size={24} color="#9DCD5A" />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.screenTitle}>Edit Profile</Text>
-
-        {/* Profile Card */}
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.imageContainer}>
-            <Image
-              source={require('../assets/images/sampleUser.png')}
-              style={styles.profileImage}
-              resizeMode='contain'
-            />
-            <Text style={styles.addProfileText}>Add New Profile +</Text>
-          </TouchableOpacity>
-
-          <View style={styles.infoSection}>
-            {['name', 'lName', 'mName'].map((key, idx) => (
-              <View key={idx}>
-                <Text style={styles.infoLabel}>
-                  {key === 'name' ? 'First Name' : key === 'lName' ? 'Last Name' : 'Middle Name'}
-                </Text>
-                <View style={styles.infoRow}>
-                  <TextInput
-                    style={getInfoInputStyle(key)}
-                    value={formData[key]}
-                    onChangeText={(text) => setFormData({ ...formData, [key]: text })}
-                    editable={isEditable}
-                    placeholder="Enter name"
-                    placeholderTextColor="#aaa"
-                    onFocus={() => setFocusedField(key)}
-                    onBlur={() => setFocusedField(null)}
-                    ref={ref => inputRefs.current[key] = ref}
-                  />
-                  <MaterialIcons name="edit" size={16} color="#BDBDBD" />
-                </View>
-                {validationErrors[key] && (
-                  <Text style={styles.errorText}>{validationErrors[key]}</Text>
-                )}
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Farm Information */}
-        <Text style={styles.sectionTitle}>Other Farm Information</Text>
-        <View style={styles.sectionContainer}>
-          <Text style={styles.label}>Farm Type</Text>
+          <Text style={styles.screenTitle}>Farm Profile</Text>
           <TouchableOpacity 
-            style={[
-              styles.inputBox, 
-              focusedField === 'gender' && { borderColor: '#9DCD5A', borderWidth: 1 },
-              validationErrors.gender && { borderColor: 'red', borderWidth: 1 }
-            ]}
-            onPress={() => isEditable && (setFocusedField('gender'), setShowGenderModal(true))}
+            onPress={() => isEditable ? handleSave() : setIsEditable(true)}
+            style={styles.editButton}
           >
-            <Text style={styles.inputText}>{formData.gender}</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.label}>Birthday</Text>
-          <TouchableOpacity 
-            style={styles.inputBox}
-            onPress={() => isEditable && (setFocusedField('birthday'), setShowDatePicker(true))}
-          >
-            <Text style={styles.inputText}>{formatDate(selectedDate)}</Text>
-            <Ionicons name="calendar" size={20} color="green" />
+            <Text style={styles.editButtonText}>
+              {isEditable ? 'Save' : 'Edit'}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Account Information */}
-        <Text style={styles.sectionTitle}>Account Information</Text>
-        <View style={styles.sectionContainer}>
-          <Text style={styles.label}>Email Address</Text>
-          <TextInput
-            style={getInputStyle('email')}
-            value={formData.email}
-            onChangeText={(text) => setFormData({ ...formData, email: text })}
-            editable={isEditable}
-            onFocus={() => setFocusedField('email')}
-            onBlur={() => setFocusedField(null)}
-            keyboardType="email-address"
+        {/* Farm Image */}
+        <View style={styles.imageContainer}>
+          <Image
+            source={farmImage}
+            style={styles.farmImage}
+            resizeMode='cover'
           />
-          {validationErrors.email && (
-            <Text style={styles.errorText}>{validationErrors.email}</Text>
+          {isEditable && (
+            <TouchableOpacity 
+              style={styles.changeImageButton}
+              onPress={pickImage}
+            >
+              <Ionicons name="camera" size={20} color="white" />
+              <Text style={styles.changeImageText}>Change Photo</Text>
+            </TouchableOpacity>
           )}
+        </View>
 
-          <Text style={styles.label}>Password</Text>
-          <View style={[
-            styles.inputRow, 
-            validationErrors.password && { borderColor: 'red', borderWidth: 1 }
-          ]}>
+        {/* Farm Information Card */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Farm Details</Text>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Farm Name</Text>
             <TextInput
-              style={styles.inputText}
-              value={formData.password}
-              onChangeText={(text) => setFormData({ ...formData, password: text })}
-              secureTextEntry={!passwordVisible}
+              style={getInputStyle('farmName')}
+              value={formData.farmName}
+              onChangeText={(text) => setFormData({ ...formData, farmName: text })}
               editable={isEditable}
-              onFocus={() => setFocusedField('password')}
+              placeholder="Enter farm name"
+              placeholderTextColor="#aaa"
+              onFocus={() => setFocusedField('farmName')}
               onBlur={() => setFocusedField(null)}
             />
-            <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)}>
-              <Ionicons name={passwordVisible ? 'eye-off' : 'eye'} size={20} color="green" />
+            {validationErrors.farmName && (
+              <Text style={styles.errorText}>{validationErrors.farmName}</Text>
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Farm Type</Text>
+            <TouchableOpacity 
+              style={[
+                styles.input,
+                styles.farmTypeInput,
+                focusedField === 'farmType' && styles.inputFocused,
+              ]}
+              onPress={() => isEditable && (setFocusedField('farmType'), setShowFarmTypeModal(true))}
+              disabled={!isEditable}
+            >
+              <Text style={styles.inputText}>{formData.farmType}</Text>
+              <MaterialIcons name="arrow-drop-down" size={24} color="#888" />
             </TouchableOpacity>
           </View>
-          {validationErrors.password && (
-            <Text style={styles.errorText}>{validationErrors.password}</Text>
-          )}
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Farm Address</Text>
+            <TextInput
+              style={getInputStyle('farmAddress')}
+              value={formData.farmAddress}
+              onChangeText={(text) => setFormData({ ...formData, farmAddress: text })}
+              editable={isEditable}
+              placeholder="Enter farm address"
+              placeholderTextColor="#aaa"
+              onFocus={() => setFocusedField('farmAddress')}
+              onBlur={() => setFocusedField(null)}
+              multiline
+              numberOfLines={3}
+            />
+            {validationErrors.farmAddress && (
+              <Text style={styles.errorText}>{validationErrors.farmAddress}</Text>
+            )}
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+              <Text style={styles.label}>Farm Size</Text>
+              <TextInput
+                style={getInputStyle('farmSize')}
+                value={formData.farmSize}
+                onChangeText={(text) => setFormData({ ...formData, farmSize: text })}
+                editable={isEditable}
+                placeholder="e.g. 5 hectares"
+                placeholderTextColor="#aaa"
+                onFocus={() => setFocusedField('farmSize')}
+                onBlur={() => setFocusedField(null)}
+              />
+            </View>
+
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Years Operating</Text>
+              <TextInput
+                style={getInputStyle('yearsOperating')}
+                value={formData.yearsOperating}
+                onChangeText={(text) => setFormData({ ...formData, yearsOperating: text })}
+                editable={isEditable}
+                placeholder="e.g. 8"
+                placeholderTextColor="#aaa"
+                onFocus={() => setFocusedField('yearsOperating')}
+                onBlur={() => setFocusedField(null)}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Certification</Text>
+            <TextInput
+              style={getInputStyle('certification')}
+              value={formData.certification}
+              onChangeText={(text) => setFormData({ ...formData, certification: text })}
+              editable={isEditable}
+              placeholder="e.g. Organic Certified"
+              placeholderTextColor="#aaa"
+              onFocus={() => setFocusedField('certification')}
+              onBlur={() => setFocusedField(null)}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Farm Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea, focusedField === 'description' && styles.inputFocused]}
+              value={formData.description}
+              onChangeText={(text) => setFormData({ ...formData, description: text })}
+              editable={isEditable}
+              placeholder="Tell customers about your farm"
+              placeholderTextColor="#aaa"
+              onFocus={() => setFocusedField('description')}
+              onBlur={() => setFocusedField(null)}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
         </View>
 
-        {/* Billing Addresses */}
-        <Text style={styles.sectionTitle}>Billing Addresses</Text>
-        <View style={styles.sectionContainer}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {addresses.map((item, index) => (
-              <View key={item.id}>
-                <TouchableOpacity 
-                  style={styles.addressContainer}
-                  onPress={() => handleAddressSelect(item)}
-                >
-                  <View style={styles.addressHeader}>
-                    <Text style={styles.addressType}>{item.type}</Text>
-                    {item.isDefault && (
-                      <View style={styles.defaultBadge}>
-                        <Text style={styles.defaultBadgeText}>Default</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.addressText}>{getAddressDisplay(item)}</Text>
-                </TouchableOpacity>
-                
-                {index < addresses.length - 1 && (
-                  <View style={styles.addressSeparator} />
-                )}
-              </View>
-            ))}
-          </ScrollView>
+        {/* Owner Information Card */}
+        <View style={[styles.card, { marginTop: 15 }]}>
+          <Text style={styles.cardTitle}>Owner Information</Text>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Owner Name</Text>
+            <TextInput
+              style={getInputStyle('ownerName')}
+              value={formData.ownerName}
+              onChangeText={(text) => setFormData({ ...formData, ownerName: text })}
+              editable={isEditable}
+              placeholder="Enter owner's full name"
+              placeholderTextColor="#aaa"
+              onFocus={() => setFocusedField('ownerName')}
+              onBlur={() => setFocusedField(null)}
+            />
+            {validationErrors.ownerName && (
+              <Text style={styles.errorText}>{validationErrors.ownerName}</Text>
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Email Address</Text>
+            <TextInput
+              style={getInputStyle('email')}
+              value={formData.email}
+              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              editable={isEditable}
+              placeholder="Enter email address"
+              placeholderTextColor="#aaa"
+              onFocus={() => setFocusedField('email')}
+              onBlur={() => setFocusedField(null)}
+              keyboardType="email-address"
+            />
+            {validationErrors.email && (
+              <Text style={styles.errorText}>{validationErrors.email}</Text>
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              style={getInputStyle('phone')}
+              value={formData.phone}
+              onChangeText={(text) => setFormData({ ...formData, phone: text })}
+              editable={isEditable}
+              placeholder="Enter phone number"
+              placeholderTextColor="#aaa"
+              onFocus={() => setFocusedField('phone')}
+              onBlur={() => setFocusedField(null)}
+              keyboardType="phone-pad"
+            />
+            {validationErrors.phone && (
+              <Text style={styles.errorText}>{validationErrors.phone}</Text>
+            )}
+          </View>
         </View>
 
-        {/* Save Button */}
-        <TouchableOpacity
-          style={[styles.saveButton, { opacity: hasChanges ? 1 : 0.5 }]}
-          disabled={!hasChanges}
-          onPress={handleSave}
-        >
-          <Text style={styles.saveButtonText}>Save Changes</Text>
-        </TouchableOpacity>
-
-        {/* Gender Selection Modal */}
+        {/* Farm Type Selection Modal */}
         <Modal
-          visible={showGenderModal}
+          visible={showFarmTypeModal}
           transparent
           animationType="fade"
-          onRequestClose={() => setShowGenderModal(false)}
+          onRequestClose={() => setShowFarmTypeModal(false)}
         >
-          <TouchableWithoutFeedback onPress={() => setShowGenderModal(false)}>
+          <TouchableWithoutFeedback onPress={() => setShowFarmTypeModal(false)}>
             <View style={styles.modalOverlay} />
           </TouchableWithoutFeedback>
           
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select Gender</Text>
+              <Text style={styles.modalTitle}>Select Farm Type</Text>
               
-              {genderOptions.map((option, index) => {
-                const IconComponent = option.iconLib;
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.genderOption, 
-                      formData.gender === option.value && styles.selectedGenderOption
-                    ]}
-                    onPress={() => handleGenderSelect(option.value)}
-                  >
-                    <View style={styles.genderIconContainer}>
-                      <IconComponent 
-                        name={option.icon} 
-                        size={20} 
-                        color={option.iconColor}
-                      />
-                      <Text style={styles.genderOptionText}>{option.value}</Text>
-                    </View>
-                    {formData.gender === option.value && (
-                      <Ionicons 
-                        name="checkmark" 
-                        size={20} 
-                        color="#9DCD5A" 
-                        style={styles.genderCheckIcon}
-                      />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-              
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowGenderModal(false)}
-              >
-                <Text style={styles.modalCloseText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Date Picker Modal */}
-        <Modal
-          visible={showDatePicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-            <View style={styles.modalOverlay} />
-          </TouchableWithoutFeedback>
-          
-          <View style={styles.modalContainer}>
-            <View style={styles.datePickerContent}>
-              <Text style={styles.modalTitle}>Select Birthday</Text>
-              
-              <Calendar
-                current={format(selectedDate, 'yyyy-MM-dd')}
-                onDayPress={handleDateSelect}
-                markedDates={{
-                  [format(selectedDate, 'yyyy-MM-dd')]: {selected: true}
+              <FlatList
+                data={farmTypeOptions}
+                keyExtractor={(item) => item.value}
+                renderItem={({ item }) => {
+                  const IconComponent = item.iconLib;
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.farmTypeOption, 
+                        formData.farmType === item.value && styles.selectedFarmTypeOption
+                      ]}
+                      onPress={() => handleFarmTypeSelect(item.value)}
+                    >
+                      <View style={styles.farmTypeIconContainer}>
+                        <IconComponent 
+                          name={item.icon} 
+                          size={20} 
+                          color={item.iconColor}
+                        />
+                        <Text style={styles.farmTypeOptionText}>{item.value}</Text>
+                      </View>
+                      {formData.farmType === item.value && (
+                        <Ionicons 
+                          name="checkmark" 
+                          size={20} 
+                          color="#4A7C59" 
+                          style={styles.farmTypeCheckIcon}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
                 }}
-                theme={calendarTheme}
-                style={styles.calendar}
               />
               
               <TouchableOpacity
                 style={styles.modalCloseButton}
-                onPress={() => setShowDatePicker(false)}
+                onPress={() => setShowFarmTypeModal(false)}
               >
                 <Text style={styles.modalCloseText}>Close</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Address Modal */}
-        <Modal
-          visible={showAddressModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowAddressModal(false)}
-        >
-          <TouchableWithoutFeedback onPress={() => setShowAddressModal(false)}>
-            <View style={styles.modalOverlay} />
-          </TouchableWithoutFeedback>
-          
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
-                {isEditingAddress ? 'Edit Address' : 'Add New Address'}
-              </Text>
-              <ScrollView 
-                style={styles.addressForm}
-                showsVerticalScrollIndicator={false}
-              >
-                <Text style={styles.label}>Street Address</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  value={newAddress.street}
-                  onChangeText={(text) => setNewAddress({...newAddress, street: text})}
-                  placeholder="Enter street address"
-                />
-
-                <Text style={styles.label}>Region</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  value={newAddress.region}
-                  onChangeText={(text) => setNewAddress({...newAddress, region: text})}
-                  placeholder="Enter Region"
-                />
-                
-                <Text style={styles.label}>Province</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  value={newAddress.province}
-                  onChangeText={(text) => setNewAddress({...newAddress, province: text})}
-                  placeholder="Enter Province"
-                />
-              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -568,275 +462,232 @@ const ProfileScreen = ({ navigation }) => {
   );
 };
 
-// Calendar theme
-const calendarTheme = {
-  backgroundColor: '#ffffff',
-  calendarBackground: '#ffffff',
-  textSectionTitleColor: '#9DCD5A',
-  selectedDayBackgroundColor: '#9DCD5A',
-  selectedDayTextColor: '#ffffff',
-  todayTextColor: '#9DCD5A',
-  dayTextColor: '#2d4150',
-  textDisabledColor: '#d9e1e8',
-  dotColor: '#9DCD5A',
-  selectedDotColor: '#ffffff',
-  arrowColor: '#9DCD5A',
-  monthTextColor: '#9DCD5A',
-  indicatorColor: '#9DCD5A',
-  textDayFontFamily: 'Poppins-Regular',
-  textMonthFontFamily: 'Poppins-SemiBold',
-  textDayHeaderFontFamily: 'Poppins-Medium',
-  textDayFontSize: 14,
-  textMonthFontSize: 16,
-  textDayHeaderFontSize: 12
-};
-
 // Styles
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#F8F9FA',
   },
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 16,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 30,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    marginBottom: 10,
+  },
+  backButton: {
+    padding: 5,
   },
   screenTitle: {
-    fontFamily: 'Poppins-Bold',
-    marginTop: 20,
-    marginBottom: 5,
-    fontSize: 18,
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 20,
+    color: '#2C3E50',
   },
-  sectionTitle: {
-    fontFamily: 'Poppins-Bold',
-    marginTop: 15,
-    marginBottom: 5,
-    fontSize: 17,
+  editButton: {
+    padding: 8,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: 'center',
   },
-  sectionContainer: {
-    marginHorizontal: 10,
+  editButtonText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+    color: '#4A7C59',
+  },
+  imageContainer: {
+    height: 200,
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 20,
+    backgroundColor: '#E9ECEF',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  farmImage: {
+    width: '100%',
+    height: '100%',
+  },
+  changeImageButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 15,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  changeImageText: {
+    color: 'white',
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    marginLeft: 5,
   },
   card: {
     backgroundColor: 'white',
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 15,
     elevation: 2,
-    padding: 10,
-    flexDirection: 'row',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  imageContainer: {
-    flex: 0.9,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
+  cardTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: '#2C3E50',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E9ECEF',
   },
-  profileImage: {
-    width: '100%',
-    height: 150,
-    borderRadius: 20,
-  },
-  addProfileText: {
-    position: 'absolute',
-    bottom: 10,
-    backgroundColor: 'white',
-    borderRadius: 10,
-    fontFamily: 'Poppins-Bold',
-    fontSize: 8,
-    color: '#009216',
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-  },
-  infoSection: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    flex: 1,
-    justifyContent: 'center',
-    gap: 10,
-  },
-  infoLabel: {
-    fontSize: 11.5,
-    color: '#ACD671',
-    marginBottom: -8,
-    marginLeft: 2,
-    fontFamily: 'Poppins-Regular',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 0.6,
-    borderBottomColor: '#888',
-  },
-  infoInput: {
-    flex: 1,
-    fontSize: 13,
-    paddingVertical: 6,
-    paddingRight: 10,
-    fontFamily: 'Poppins-Medium',
-    paddingBottom: 0,
-    borderBottomWidth: 0.6,
-    borderBottomColor: '#888',
-  },
-  label: {
-    fontSize: 11.5,
-    color: '#9DCD5A',
-    fontFamily: 'Poppins-Medium',
-    marginBottom: 4,
-  },
-  inputBox: {
-    borderWidth: 0.5,
-    backgroundColor: '#FAFAFA',
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontFamily: 'Poppins-Regular',
-    fontSize: 12,
-    justifyContent: 'space-between',
-    flexDirection: 'row'
-  },
-  inputText: {
-    flex: 1,
-    fontFamily: 'Poppins-Regular',
-    fontSize: 12,
-  },
-  inputRow: {
-    borderWidth: 0.5,
-    backgroundColor: '#FAFAFA',
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-  },
-  saveButton: {
-    backgroundColor: '#8BC34A',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 20,
-    marginHorizontal: 10,
+  formGroup: {
     marginBottom: 15,
   },
-  saveButtonText: {
-    color: 'white',
+  row: {
+    flexDirection: 'row',
+  },
+  label: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 13,
+    color: '#5E6D7E',
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+    fontFamily: 'Poppins-Regular',
     fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
+    color: '#2C3E50',
+  },
+  inputFocused: {
+    borderColor: '#4A7C59',
+    backgroundColor: 'white',
+    shadowColor: '#4A7C59',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputError: {
+    borderColor: '#E74C3C',
+  },
+  inputText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#2C3E50',
+  },
+  farmTypeInput: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
   },
   errorText: {
-    color: 'red',
-    fontSize: 10,
     fontFamily: 'Poppins-Regular',
-    marginTop: 2,
-    marginLeft: 2,
+    fontSize: 11,
+    color: '#E74C3C',
+    marginTop: 4,
+    marginLeft: 4,
   },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#9DCD5A',
-    opacity: 0.3,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 15,
+    padding: 20,
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 20,
-    width: '80%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  datePickerContent: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  calendar: {
-    marginBottom: 20,
-    borderRadius: 10,
-    overflow: 'hidden',
+    width: width - 40,
+    maxHeight: '80%',
   },
   modalTitle: {
     fontFamily: 'Poppins-SemiBold',
     fontSize: 18,
-    color: '#333',
+    color: '#2C3E50',
     marginBottom: 20,
     textAlign: 'center',
   },
-  genderOption: {
+  farmTypeOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 15,
+    paddingHorizontal: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#F1F3F5',
   },
-  selectedGenderOption: {
-    backgroundColor: '#f9f9f9',
+  selectedFarmTypeOption: {
+    backgroundColor: '#F8F9FA',
   },
-  genderOptionText: {
+  farmTypeOptionText: {
     fontFamily: 'Poppins-Regular',
-    fontSize: 16,
-    color: '#333',
+    fontSize: 15,
+    color: '#2C3E50',
   },
-  genderIconContainer: {
+  farmTypeIconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  genderCheckIcon: {
-    marginRight: 8,
+  farmTypeCheckIcon: {
+    marginRight: 5,
   },
   modalCloseButton: {
-    marginTop: 20,
+    marginTop: 15,
     paddingVertical: 12,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#F1F3F5',
     borderRadius: 8,
     alignItems: 'center',
   },
   modalCloseText: {
     fontFamily: 'Poppins-Medium',
     fontSize: 16,
-    color: '#555',
+    color: '#4A7C59',
   },
   dialog: {
-    borderRadius: 16,
+    borderRadius: 12,
     backgroundColor: 'white',
   },
   dialogTitle: {
     fontFamily: 'Poppins-SemiBold',
     fontSize: 18,
-    color: '#333',
+    color: '#2C3E50',
   },
   dialogMessage: {
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
-    color: '#666',
+    color: '#495057',
+    lineHeight: 22,
   },
   dialogActions: {
     paddingHorizontal: 16,
@@ -845,51 +696,10 @@ const styles = StyleSheet.create({
   dialogButtonText: {
     fontFamily: 'Poppins-Medium',
     fontSize: 14,
-    color: '#666',
   },
   dialogPrimaryButton: {
-    color: '#9DCD5A',
-  },
-  addressContainer: {
-    backgroundColor: '#FAFAFA',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-  },
-  addressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  addressType: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 12,
-    color: '#333',
-    marginRight: 8,
-  },
-  defaultBadge: {
-    backgroundColor: '#E8F5E9',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  defaultBadgeText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 10,
-    color: '#009216',
-  },
-  addressText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 12,
-    color: '#555',
-  },
-  addressSeparator: {
-    height: 10,
-  },
-  addressForm: {
-    maxHeight: 400,
-    marginBottom: 10,
+    color: '#4A7C59',
   },
 });
 
-export default ProfileScreen;
+export default FarmProfileScreen;

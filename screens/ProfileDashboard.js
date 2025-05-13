@@ -15,11 +15,10 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
-import { collection, query, where, getDocs, orderBy, doc, deleteDoc, writeBatch, onSnapshot   } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, deleteDoc, writeBatch, onSnapshot, getDoc   } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { useIsFocused } from '@react-navigation/native';
-
 
 const { width } = Dimensions.get('window');
 
@@ -148,6 +147,7 @@ export default function DashboardScreen({navigation, route}) {
   const [isLoading, setIsLoading] = useState(false);
   const isFocused = useIsFocused();
   const [balance, setBalance] = useState(null); 
+  const [profilePicUrl, setProfilePicUrl] = useState(null); 
 
 
   const fetchPaymentMethods = async () => {
@@ -196,15 +196,31 @@ export default function DashboardScreen({navigation, route}) {
       // Cleanup the listener when the component is unmounted or if the screen is not focused
       return () => unsubscribe();
     };
+
+        const fetchProfilePicture = async () => {
+      try {
+        if (!userData?.userId) return;
+        
+        const userDoc = await getDoc(doc(db, 'users', userData.userId));
+        if (userDoc.exists()) {
+          const userDataFromFirestore = userDoc.data();
+          setProfilePicUrl(userDataFromFirestore.profilePicUrl || null);
+        }
+      } catch (error) {
+        console.error("Error fetching profile picture:", error);
+      }
+    };
+
   
     if (isFocused) {
       fetchBalance();
+      fetchProfilePicture();
     }
 
     if (isFocused || route.params?.refreshCards) {
       fetchPaymentMethods();
     }
-  }, [isFocused, route.params?.refreshCards]);
+  }, [isFocused, route.params?.refreshCards, userData?.userId]);
 
   const updateDefaultCard = async (cardId) => {
     try {
@@ -287,8 +303,18 @@ export default function DashboardScreen({navigation, route}) {
           {/* Profile Card */}
           <View style={styles.profileCardUpdated}>
             <View style={styles.profileRow}>
-              <Image source={require('../assets/images/sampleUser.png')} style={styles.avatarLarge} />
-                <View style={styles.profileInfo}>
+              {profilePicUrl ? (
+                <Image 
+                  source={{ uri: profilePicUrl }} 
+                  style={styles.avatarLarge} 
+                />
+              ) : (
+                <Image 
+                  source={require('../assets/images/sampleUser.png')} 
+                  style={styles.avatarLarge} 
+                />
+              )}
+              <View style={styles.profileInfo}>
                 <Text style={styles.nameLarge}>{userData.firstName + " " + userData.lastName}</Text>
                 <Text style={styles.emailLarge}>{userData.email}</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('EditUserProfile')}>
@@ -333,7 +359,10 @@ export default function DashboardScreen({navigation, route}) {
             <Action 
               icon="barn" 
               label="My Barn" 
-              onPress={() => navigation.navigate('FarmDashboard')} 
+              onPress={() => navigation.reset({
+                index: 0,
+                routes: [{ name: 'BarnIntro' }],
+              })} 
             />
             <Action icon="receipt" label="My Orders" />
             <Action icon="history" label="My History" />
@@ -497,9 +526,9 @@ const styles = StyleSheet.create({
     alignItems: 'center' 
   },
   avatarLarge: { 
-    width: 70, 
-    height: 70, 
-    borderRadius: 12 
+    width: 80, 
+    height: 80, 
+    borderRadius: 12,
   },
   profileInfo: { 
     flex: 1, 
