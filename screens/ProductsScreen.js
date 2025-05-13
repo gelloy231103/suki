@@ -8,45 +8,40 @@ import {
   Image, 
   RefreshControl,
   ActivityIndicator,
-  SafeAreaView,
-  TextInput
+  TextInput,
+  Alert
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { collection, query, where, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ProductsScreen = () => {
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState('products');
   const [products, setProducts] = useState([]);
-  const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch all products from Firestore (removed farmId filter)
+  // Fetch products from Firestore filtered by farmId (current user)
   useEffect(() => {
     const fetchProducts = () => {
       setLoading(true);
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
       
-      // Query for all products (not drafts)
       const productsQuery = query(
         collection(db, 'products'),
+        where('farmId', '==', userId),
         where('status', '!=', 'draft')
-      );
-      
-      // Query for drafts
-      const draftsQuery = query(
-        collection(db, 'products'),
-        where('status', '==', 'draft')
       );
 
       const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
         const productsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          formattedPrice: `₱${doc.data().price.toFixed(2)}`,
+          formattedPrice: `₱${doc.data().price?.toFixed(2) || '0.00'}`,
           discountPrice: doc.data().percentage 
             ? `₱${(doc.data().price * (1 - doc.data().percentage/100)).toFixed(2)}`
             : null
@@ -56,19 +51,7 @@ const ProductsScreen = () => {
         setRefreshing(false);
       });
 
-      const unsubscribeDrafts = onSnapshot(draftsQuery, (snapshot) => {
-        const draftsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          formattedPrice: `₱${doc.data().price.toFixed(2)}`
-        }));
-        setDrafts(draftsData);
-      });
-
-      return () => {
-        unsubscribeProducts();
-        unsubscribeDrafts();
-      };
+      return () => unsubscribeProducts();
     };
 
     fetchProducts();
@@ -76,7 +59,6 @@ const ProductsScreen = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // The useEffect will automatically refetch when refreshing changes
   };
 
   // Filter products based on search query
@@ -86,11 +68,32 @@ const ProductsScreen = () => {
     product.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredDrafts = drafts.filter(draft => 
-    draft.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    draft.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    draft.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Handle product deletion
+  const handleDeleteProduct = (productId) => {
+    Alert.alert(
+      "Delete Product",
+      "Are you sure you want to delete this product?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'products', productId));
+              // No need to manually refresh as Firestore listener will update automatically
+            } catch (error) {
+              console.error("Error deleting product: ", error);
+              Alert.alert("Error", "Failed to delete product");
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const renderProductItem = ({ item }) => (
     <TouchableOpacity 
@@ -128,7 +131,7 @@ const ProductsScreen = () => {
                item.status === 'sold-out' ? 'Sold Out' : 'Seasonal'}
             </Text>
           </View>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => handleDeleteProduct(item.id)}>
             <MaterialIcons name="more-vert" size={24} color="#666" />
           </TouchableOpacity>
         </View>
@@ -176,16 +179,16 @@ const ProductsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Modern Header with Back Button */}
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.navigate('FarmDashboard')}
+          onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Products</Text>
+        <Text style={styles.headerTitle}>My Products ({products.length})</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -206,32 +209,9 @@ const ProductsScreen = () => {
         ) : null}
       </View>
 
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'products' && styles.activeTab]}
-          onPress={() => setActiveTab('products')}
-        >
-          <Text style={[styles.tabText, activeTab === 'products' && styles.activeTabText]}>
-            Products ({products.length})
-          </Text>
-          {activeTab === 'products' && <View style={styles.activeTabIndicator} />}
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'drafts' && styles.activeTab]}
-          onPress={() => setActiveTab('drafts')}
-        >
-          <Text style={[styles.tabText, activeTab === 'drafts' && styles.activeTabText]}>
-            Drafts ({drafts.length})
-          </Text>
-          {activeTab === 'drafts' && <View style={styles.activeTabIndicator} />}
-        </TouchableOpacity>
-      </View>
-
       {/* Product List */}
       <FlatList
-        data={activeTab === 'products' ? filteredProducts : filteredDrafts}
+        data={filteredProducts}
         renderItem={renderProductItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
@@ -246,14 +226,14 @@ const ProductsScreen = () => {
           <View style={styles.emptyContainer}>
             <Ionicons name="leaf-outline" size={48} color="#9DCD5A" />
             <Text style={styles.emptyText}>
-              {activeTab === 'products' 
-                ? 'No products found' 
-                : 'No drafts saved'}
+              {searchQuery 
+                ? 'No products found matching your search' 
+                : 'No products added yet'}
             </Text>
             <Text style={styles.emptySubtext}>
-              {activeTab === 'products' 
-                ? searchQuery ? 'Try a different search' : 'Add your first product to get started'
-                : 'Save products as drafts to continue later'}
+              {searchQuery 
+                ? 'Try a different search term'
+                : 'Add your first product to get started'}
             </Text>
           </View>
         }
@@ -297,8 +277,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontFamily: 'Poppins-SemiBold',
+    fontWeight: '600',
     color: '#333',
+    textAlign: 'center',
+    flex: 1,
+    marginRight: 40, // To balance the left back button
   },
   headerRight: {
     width: 40,
@@ -321,39 +304,6 @@ const styles = StyleSheet.create({
     height: '100%',
     fontSize: 16,
     color: '#333',
-  },
-  // Tab Navigation
-  tabContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  activeTab: {
-    // Styles applied when tab is active
-  },
-  tabText: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Medium',
-    color: '#888',
-  },
-  activeTabText: {
-    color: '#333',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  activeTabIndicator: {
-    position: 'absolute',
-    bottom: -1,
-    height: 2,
-    width: '50%',
-    backgroundColor: '#9DCD5A',
   },
   // Product List
   listContent: {
@@ -400,14 +350,14 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
+    fontWeight: '600',
     color: '#333',
     marginBottom: 4,
   },
   productCategory: {
     fontSize: 14,
     color: '#9DCD5A',
-    fontFamily: 'Poppins-Medium',
+    fontWeight: '500',
   },
   featuredTag: {
     alignSelf: 'flex-start',
@@ -419,7 +369,7 @@ const styles = StyleSheet.create({
   },
   featuredText: {
     fontSize: 12,
-    fontFamily: 'Poppins-Medium',
+    fontWeight: '500',
     color: '#2e7d32',
   },
   statusContainer: {
@@ -443,7 +393,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontFamily: 'Poppins-Medium',
+    fontWeight: '500',
   },
   // Price Section
   priceContainer: {
@@ -453,7 +403,7 @@ const styles = StyleSheet.create({
   },
   productPrice: {
     fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
+    fontWeight: '600',
     color: '#333',
   },
   originalPrice: {
@@ -464,7 +414,7 @@ const styles = StyleSheet.create({
   },
   discountedPrice: {
     fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
+    fontWeight: '600',
     color: '#9DCD5A',
     marginRight: 8,
   },
@@ -476,7 +426,7 @@ const styles = StyleSheet.create({
   },
   discountText: {
     fontSize: 12,
-    fontFamily: 'Poppins-Medium',
+    fontWeight: '500',
     color: '#ff8f00',
   },
   // Details Section
@@ -493,7 +443,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 14,
-    fontFamily: 'Poppins-Medium',
+    fontWeight: '500',
     color: '#666',
     marginLeft: 4,
   },
@@ -506,7 +456,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
+    fontWeight: '600',
     color: '#333',
     marginTop: 16,
     textAlign: 'center',
