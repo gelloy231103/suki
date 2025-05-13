@@ -1,71 +1,97 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 const CheckOutScreen = () => {
-    const navigation = useNavigation();
-  
-    return (
-      <View style={styles.container}>
-        {/* Success Icon */}
-        <View style={styles.iconContainer}>
-          <Image
-            source={require('../assets/L1.png')} 
-            style={styles.imgDone}
-            resizeMode="contain"
-          />
-        </View>
-        
-        {/* Success Message */}
-        <Text style={styles.successMessage}>CHECK OUT WAS DONE SUCCESSFULLY.</Text>
-        
-        {/* Confirmation Button */}
-        <TouchableOpacity 
-          style={styles.confirmButton}
-          onPress={() => navigation.navigate('ListProducts')} // Updated navigation target
-        >
-          <Text style={styles.confirmButtonText}>Confirm</Text>
-        </TouchableOpacity>
-      </View>
-    );
+  const navigation = useNavigation();
+  const route = useRoute();
+  const cartItems = route.params?.cartItems || [];
+  const onCheckoutComplete = route.params?.onCheckoutComplete;
+
+  const handleCompleteCheckout = () => {
+    // Handle checkout completion logic here
+    
+    // Call the completion callback if provided
+    if (onCheckoutComplete) {
+      onCheckoutComplete();
+    } else {
+      // Fallback navigation if no callback provided
+      navigation.reset({
+        index: 0,
+        routes: [
+          { 
+            name: 'MainTab',
+            state: {
+              routes: [
+                { name: 'Home' }
+              ]
+            }
+          }
+        ],
+      });
+    }
   };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Checkout</Text>
+      {cartItems.map((item, index) => (
+        <View key={index} style={styles.itemContainer}>
+          <Text style={styles.itemName}>{item.productName}</Text>
+          <Text style={styles.itemPrice}>₱{parseFloat(item.price).toFixed(2)} x {item.quantity}</Text>
+        </View>
+      ))}
+      <TouchableOpacity 
+        style={styles.checkoutButton}
+        onPress={handleCompleteCheckout}
+      >
+        <Text style={styles.checkoutButtonText}>Complete Checkout</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
-    justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
+    backgroundColor: '#fff',
   },
-  iconContainer: {
-    marginBottom: 30,
+  title: {
+    fontSize: 24,
+    fontFamily: 'Poppins-Bold',
+    marginBottom: 20,
+    color: '#333',
   },
-  imgDone:{
-    height:150,
-    width: 150,
-  },
-  successMessage: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#9DCD5A',
-    textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 28,
-  },
-  confirmButton: {
-    backgroundColor: '#9DCD5A',
-    borderRadius: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    width: '80%',
+  itemContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  confirmButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 18,
+  itemName: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: '#333',
+  },
+  itemPrice: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#9DCD5A',
+  },
+  checkoutButton: {
+    backgroundColor: '#9DCD5A',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  checkoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
   },
 });
 

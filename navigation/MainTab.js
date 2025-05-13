@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 // Import all your tab screens
@@ -8,8 +9,18 @@ import ListProductsScreen from '../screens/ListProductsScreen';
 import CheckOutScreen from '../screens/CheckOutScreen';
 import ProfileDashboard from '../screens/ProfileDashboard';
 import CartScreen from '../screens/CartScreen';
+import Messages from '../screens/Messages';
+import ChatScreen from '../screens/ChatScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+
+const MessagesStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="MessagesList" component={Messages} />
+    <Stack.Screen name="Chat" component={ChatScreen} />
+  </Stack.Navigator>
+);
 
 const MainTab = () => (
   <Tab.Navigator
@@ -52,9 +63,9 @@ const MainTab = () => (
         tabBarLabel: 'Cart',
       }}
     />
-        <Tab.Screen
+    <Tab.Screen
       name="Messages"
-      component={ProfileDashboard}
+      component={MessagesStack}
       options={{
         tabBarIcon: ({ color }) => <Icon name="message" size={24} color={color} />,
         tabBarLabel: 'Messages',

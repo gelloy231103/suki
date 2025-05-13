@@ -1,16 +1,10 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import React from "react";
+import { View, Text, Image, TextInput, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons, FontAwesome, MaterialIcons, Entypo } from "@expo/vector-icons";
+import { Feather } from '@expo/vector-icons';
 
-const OrderManagementScreen = () => {
+
+export default function ManageOrderScreen() {
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -20,196 +14,250 @@ const OrderManagementScreen = () => {
 
       {/* Expected Delivery */}
       <View style={styles.expectedDelivery}>
-        <Text style={styles.expectedText}>Expected Delivery on May 15</Text>
-        <Icon name="edit" size={18} color="#fff" />
+        <Text style={styles.expectedDeliveryText}>Expected Delivery on May 15</Text>
+        <Ionicons name="pencil" size={16} color="#fff" />
       </View>
 
       {/* Order Status */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Order Status</Text>
-        <Text style={styles.statusText}>
-          <Icon name="local-shipping" size={18} /> Parcel shipped out on 05/13/2025
-        </Text>
+        <Text style={styles.orderStatusTitle}>Order Status</Text>
+        <View style={styles.statusRow}>
+          <FontAwesome name="truck" size={16} color="#c0392b" />
+          <Text style={styles.statusText}>Parcel shipped out</Text>
+        </View>
+        <Text style={styles.statusDate}>05/13/2025 08:45</Text>
       </View>
 
       {/* Delivery Info */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Delivery Information</Text>
-        <Text style={styles.boldText}>
-          <Icon name="place" size={18} color="red" /> Elijah Arizobal (+63 9658232301)
-        </Text>
-        <Text style={styles.grayText}>#42 St. Mary Street, BGC, Barangay, Makina City</Text>
+        <View style={styles.infoRow}>
+          <Entypo name="location-pin" size={20} color="#c0392b" />
+          <Text>Elijah Arizobal ( +63 9153237390 )</Text>
+        </View>
+        <Text style={styles.address}>#94 St. Mary Street, KDC, Bangkal, Makati City</Text>
       </View>
 
-      {/* Items */}
-      <View style={styles.itemCard}>
-        <ItemCard
-          title="Sweet Tomatoes"
-          productId="123456"
-          variant="1 kg"
-          price="₱73"
-          image="https://via.placeholder.com/60x60.png?text=Tomatoes"
-        />
-        <ItemCard
-          title="Broccilicious"
-          productId="789456"
-          variant="1 Sack"
-          price="₱73"
-          image="https://via.placeholder.com/60x60.png?text=Broccoli"
-        />
-        <Text style={styles.totalText}>Order Total: ₱118</Text>
+      {/* Products */}
+      <View style={styles.section}>
+        {/* Sweet Tomatoes */}
+        <View style={styles.productItem}>
+          <Image source={{ uri: 'https://i.imgur.com/FxyR8C1.png' }} style={styles.productImage} />
+          <View style={styles.productDetails}>
+            <Text style={styles.productTitle}>Sweet Tomatoes</Text>
+            <Text style={styles.productSubText}>Prod ID: 123456</Text>
+            <Text style={styles.productSubText}>Variant: 1 kg</Text>
+          </View>
+          <Text style={styles.productPrice}>₱73</Text>
+        </View>
+
+        {/* Broccilicious */}
+        <View style={styles.productItem}>
+          <Image source={{ uri: 'https://i.imgur.com/j0t3z2N.png' }} style={styles.productImage} />
+          <View style={styles.productDetails}>
+            <Text style={styles.productTitle}>Broccilicious</Text>
+            <Text style={styles.productSubText}>Prod ID: 789456</Text>
+            <Text style={styles.productSubText}>Variant: 1 Sack</Text>
+          </View>
+          <Text style={styles.productPrice}>₱73</Text>
+        </View>
+
+        {/* Order Total */}
+        <Text style={styles.orderTotal}>Order Total: ₱118</Text>
       </View>
 
       {/* Remarks */}
-      <Text style={styles.remarksLabel}>Remarks:</Text>
-      <TextInput style={styles.inputBox} placeholder="Type your remarks..." />
+      <View style={styles.section}>
+        <Text>Remarks:</Text>
+        <TextInput style={styles.remarksInput} />
+      </View>
 
-      {/* Action Buttons */}
-      <View style={styles.actions}>
-        {[
-          { icon: 'chat', label: 'Chat' },
-          { icon: 'cancel', label: 'Cancel' },
-          { icon: 'block', label: 'Block' },
-          { icon: 'report', label: 'Report' },
-        ].map((btn, i) => (
-          <TouchableOpacity key={i} style={styles.iconBox}>
-            <Icon name={btn.icon} size={26} color="#900" />
-            <Text style={styles.iconLabel}>{btn.label}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity>
+          <Ionicons name="chatbubble-ellipses" size={24} color="#8e44ad" />
+        </TouchableOpacity>
+        <TouchableOpacity>
+          <Entypo name="circle-with-cross" size={24} color="#c0392b" />
+        </TouchableOpacity>
+        <TouchableOpacity>
+          <Entypo name="block" size={24} color="gray" />
+        </TouchableOpacity>
+        <TouchableOpacity>
+          <MaterialIcons name="report" size={24} color="red" />
+        </TouchableOpacity>
       </View>
 
       {/* Update Status */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Update Status</Text>
-        <View style={styles.statusRow}>
-          {[
-            ['Order Placed', '05/11/2025'],
-            ['Order Arranged', '05/12/2025'],
-            ['Order Shipped Out', '05/13/2025'],
-            ['Expected Order By', '05/15/2025'],
-          ].map(([label, date], i) => (
-            <View key={i} style={styles.statusStep}>
-              <View style={styles.stepCircle} />
-              <Text style={styles.stepText}>{label}</Text>
-              <Text style={styles.stepDate}>{date}</Text>
-            </View>
-          ))}
+      <View style={styles.statusContainer}>
+        <View style={styles.statusHeader}>
+          <Text style={styles.statusTitle}>Update Status</Text>
+          <View style={styles.statusIcons}>
+          <Feather name="edit" size={18} color="green" style={{ marginRight: 10 }} />
+          <FontAwesome name="save" size={18} color="green" />
+        </View>
+        </View>
+
+        <View style={styles.statusStepsRow}>
+          <View style={styles.statusStepWrapper}>
+            <View style={styles.circleWrapper}><FontAwesome name="shopping-bag" size={20} color="#8e44ad" /></View>
+            <Text style={styles.statusStepText}>Order Placed{"\n"}05/12/2025 20:39</Text>
+          </View>
+          <View style={styles.line} />
+          <View style={styles.statusStepWrapper}>
+            <View style={styles.circleWrapper}><FontAwesome name="gift" size={20} color="#8e44ad" /></View>
+            <Text style={styles.statusStepText}>Order Arranged{"\n"}05/13/2025 01:01</Text>
+          </View>
+          <View style={styles.line} />
+          <View style={styles.statusStepWrapper}>
+            <View style={styles.circleWrapper}><FontAwesome name="truck" size={20} color="#8e44ad" /></View>
+            <Text style={styles.statusStepText}>Order Shipped Out{"\n"}05/13/2025 01:01</Text>
+          </View>
+          <View style={styles.line} />
+          <View style={styles.statusStepWrapper}>
+            <View style={styles.circleWrapper}><FontAwesome name="flag-checkered" size={20} color="#8e44ad" /></View>
+            <Text style={styles.statusStepText}>Expect Order By{"\n"}05/15/2025</Text>
+          </View>
         </View>
       </View>
 
-      {/* Footer Info */}
-      <View style={styles.footer}>
-        <View style={styles.footerRow}>
-          <Text style={styles.footerText}>Order ID:</Text>
-          <Text style={styles.orderId}>2505165ITDASQ8K</Text>
-          <TouchableOpacity>
-            <Text style={styles.copy}>Copy</Text>
-          </TouchableOpacity>
+      {/* Order ID and Payment */}
+      <View style={styles.section}>
+        <Text style={styles.grayText}>Order ID</Text>
+        <View style={styles.idRow}>
+          <Text>25051651TDASQ6K</Text>
+          <TouchableOpacity style={styles.copyButton}><Text style={styles.copyText}>Copy</Text></TouchableOpacity>
         </View>
-        <Text style={styles.footerText}>Paid by</Text>
-        <Text style={styles.paymentMethod}>Cash on Delivery</Text>
+        <View style={styles.paymentTag1}>
+          <Text style={styles.paymentLabel}>Paid by</Text>
+          <Text style={styles.paymentMethod}>Cash on Delivery</Text>
+        </View>
+        <View style={styles.paymentTag}>
+          
+        </View>
       </View>
     </ScrollView>
   );
-};
+}
 
-// ItemCard Component
-const ItemCard = ({ title, productId, variant, price, image }) => (
-  <View style={styles.itemRow}>
-    <Image source={{ uri: image }} style={styles.itemImage} />
-    <View style={{ flex: 1 }}>
-      <Text style={styles.itemTitle}>{title}</Text>
-      <Text style={styles.itemSub}>Prod ID: {productId}</Text>
-      <Text style={styles.itemSub}>Variant: {variant}</Text>
-    </View>
-    <Text style={styles.itemPrice}>{price}</Text>
-  </View>
-);
-
-// Styles
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: { backgroundColor: '#9AD36A', padding: 12 },
-  headerText: { textAlign: 'center', color: '#fff', fontWeight: 'bold' },
-  expectedDelivery: {
-    backgroundColor: '#B3E283',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 10,
-    alignItems: 'center',
-  },
-  expectedText: { color: '#fff', fontWeight: 'bold' },
-
-  section: { padding: 10 },
-  sectionTitle: { fontWeight: 'bold', marginBottom: 5 },
-  statusText: { color: '#555' },
-  boldText: { fontWeight: 'bold' },
-  grayText: { color: '#555', marginTop: 2 },
-
-  itemCard: { padding: 10 },
-  itemRow: { flexDirection: 'row', marginBottom: 15 },
-  itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 10 },
-  itemTitle: { fontWeight: 'bold' },
-  itemSub: { fontSize: 12, color: '#555' },
-  itemPrice: { alignSelf: 'center', fontWeight: 'bold', color: '#222' },
-  totalText: { textAlign: 'right', fontWeight: 'bold' },
-
-  remarksLabel: { marginLeft: 10, marginTop: 5 },
-  inputBox: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    margin: 10,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-
-  actions: {
+  container: { flex: 1, backgroundColor: "#fff" },
+  header: { backgroundColor: '#AEDC63', padding: 15, alignItems: 'center' },
+  headerText: { fontWeight: 'bold', color: '#fff' },
+  expectedDelivery: { backgroundColor: '#AEDC63', padding: 15, margin: 10, borderRadius: 5, flexDirection: 'row', justifyContent: 'space-between' },
+  expectedDeliveryText: { color: '#fff', fontWeight: 'bold' },
+  section: { paddingHorizontal: 15, marginTop: 15 },
+  orderStatusTitle: { fontWeight: 'bold', color: '#c0392b' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
+  statusText: { marginLeft: 10 },
+  statusDate: { marginLeft: 26, color: 'gray' },
+  sectionTitle: { fontWeight: 'bold' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
+  address: { marginLeft: 26, color: 'gray' },
+  productItem: { flexDirection: 'row', marginBottom: 10, backgroundColor: '#f9f9f9', padding: 10, borderRadius: 5 },
+  productImage: { width: 60, height: 60, borderRadius: 5 },
+  productDetails: { flex: 1, marginLeft: 10 },
+  productTitle: { fontWeight: 'bold' },
+  productSubText: { color: 'gray' },
+  productPrice: { alignSelf: 'center' },
+  orderTotal: { textAlign: 'right', fontWeight: 'bold' },
+  remarksInput: { borderColor: '#ccc', borderWidth: 1, borderRadius: 5, padding: 8, marginTop: 5 },
+  actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 10,
+    paddingHorizontal: 10,
+    paddingTop: 10
   },
-  iconBox: { alignItems: 'center' },
-  iconLabel: { fontSize: 12, marginTop: 3 },
-
-  statusRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  statusStep: { alignItems: 'center', width: '23%' },
-  stepCircle: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#9AD36A',
-    marginBottom: 5,
+  statusContainer: {
+    margin: 15,
+    padding: 15,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 10,
+    backgroundColor: '#fff'
   },
-  stepText: { fontSize: 10, fontWeight: 'bold', textAlign: 'center' },
-  stepDate: { fontSize: 10, color: '#666', textAlign: 'center' },
-
-  footer: {
-    borderTopWidth: 1,
-    borderColor: '#ddd',
-    padding: 10,
-    backgroundColor: '#F6F6F6',
+  statusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15
   },
-  footerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  footerText: { color: '#555' },
-  orderId: { fontWeight: 'bold', marginLeft: 5 },
-  copy: {
-    marginLeft: 10,
-    fontSize: 12,
-    color: '#007BFF',
-    textDecorationLine: 'underline',
+  statusTitle: {
+    fontWeight: 'bold',
+    color: '#A93226'
+  },
+  statusIcons: {
+    flexDirection: 'row'
+  },
+  statusStepsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  statusStepWrapper: {
+    alignItems: 'center',
+    width: 70
+  },
+  circleWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 3,
+    borderColor: '#AEDC63',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  line: {
+    height: 3,
+    flex: 1,
+    backgroundColor: '#AEDC63'
+  },
+  statusStepText: {
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 5
+  },
+  section: {
+    paddingHorizontal: 15,
+    marginTop: 15
+  },
+  grayText: {
+    color: 'gray'
+  },
+  idRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  copyButton: {
+    backgroundColor: '#e8f5e9',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 5
+  },
+  copyText: {
+    color: '#2e7d32',
+    fontWeight: 'bold'
+  },
+  paymentTag: {
+    marginTop: 10,
+    backgroundColor: '#AEDC63', padding: 15,
+    marginBottom: 15,
+  },
+  paymentTag1: {
+    marginTop: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  paymentLabel: {
+    color: '#000'
   },
   paymentMethod: {
-    backgroundColor: '#9AD36A',
-    color: '#fff',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 5,
-    marginTop: 4,
-    alignSelf: 'flex-start',
-    fontWeight: 'bold',
-  },
+    color: '#000',
+    fontWeight: 'bold'
+  }
 });
-
-export default OrderManagementScreen;

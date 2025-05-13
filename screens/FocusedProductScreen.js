@@ -133,6 +133,11 @@ const FocusedProductScreen = () => {
     animateButton();
   };
 
+  const formatPrice = (price) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price) || 0;
+    return `₱${numPrice.toFixed(2)}`;
+  };
+
   const addToCart = () => {
     if (!product) return;
     
@@ -480,11 +485,12 @@ const FocusedProductScreen = () => {
 
         {/* Product Images Carousel */}
         <View style={styles.imageCarousel}>
-          {product.images?.length > 0 ? (
+          {product.images && product.images.length > 0 ? (
             <Image
-              source={{ uri: product.images[activeImageIndex] }}
+              source={getImageSource(product.images[activeImageIndex])}
               style={styles.productImage}
               resizeMode="contain"
+              defaultSource={defaultImage}
             />
           ) : (
             <View style={[styles.productImage, styles.emptyImage]}>
@@ -665,6 +671,7 @@ const FocusedProductScreen = () => {
         
         <TouchableOpacity 
           style={styles.buyNowButton}
+          onPress={handleBuyNow}
           onPress={handleBuyNow}
         >
           <Text style={styles.buyNowText}>BUY NOW</Text>

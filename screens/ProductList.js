@@ -1,31 +1,88 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+
+const defaultImage = require('../assets/tomatoes.png');
 
 const products = [
   {
+    id: 'P001',
     name: 'Sweet Tomatoes',
-    price: '₱40/kg',
+    price: 40.00,
+    unit: 'kilogram',
+    category: 'Vegetables',
+    stock: 100,
+    status: 'available',
     image: require('../assets/tomatoes.png'),
+    farmName: 'Tadhana FarmVille',
   },
   {
+    id: 'P002',
     name: 'Biggest Eggplant',
-    price: '₱80/kg',
+    price: 80.00,
+    unit: 'kilogram',
+    category: 'Vegetables',
+    stock: 50,
+    status: 'available',
     image: require('../assets/eggplant.png'),
+    farmName: 'Tadhana FarmVille',
   },
   {
+    id: 'P003',
     name: 'Broccolicious',
-    price: '₱40/kg',
+    price: 40.00,
+    unit: 'kilogram',
+    category: 'Vegetables',
+    stock: 75,
+    status: 'available',
     image: require('../assets/broccoli.png'),
+    farmName: 'Tadhana FarmVille',
   },
   {
+    id: 'P004',
     name: 'Lettuce Baguio',
-    price: '₱35/kg',
+    price: 35.00,
+    unit: 'kilogram',
+    category: 'Leafy Greens',
+    stock: 60,
+    status: 'available',
     image: require('../assets/lettuce.png'),
+    farmName: 'Tadhana FarmVille',
   },
 ];
 
 export default function ProductList() {
+  const navigation = useNavigation();
+
+  const handleProductPress = (product) => {
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : Number(product.price) || 0;
+    
+    navigation.navigate('FocusedProduct', { 
+      productId: product.id,
+      product: {
+        ...product,
+        price: price,
+        formattedPrice: formatPrice(price, product.unit),
+        images: [product.image],
+        farmName: product.farmName,
+      }
+    });
+  };
+
+  const formatPrice = (price, unit) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price) || 0;
+    return `₱${numPrice.toFixed(2)}/${unit}`;
+  };
+
+  const getImageSource = (image) => {
+    try {
+      return image || defaultImage;
+    } catch (error) {
+      return defaultImage;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -51,15 +108,23 @@ export default function ProductList() {
 
       <ScrollView contentContainerStyle={styles.productList}>
         {products.map((product, index) => (
-          <View key={index} style={styles.productCard}>
-            <Image source={product.image} style={styles.productImage} />
+          <TouchableOpacity
+            key={index}
+            style={styles.productCard}
+            onPress={() => handleProductPress(product)}
+          >
+            <Image 
+              source={getImageSource(product.image)} 
+              style={styles.productImage}
+              defaultSource={defaultImage}
+            />
             <View style={styles.productInfo}>
               <Text style={styles.productName}>{product.name}</Text>
-              <Text style={styles.productPrice}>{product.price}</Text>
+              <Text style={styles.productPrice}>{formatPrice(product.price, product.unit)}</Text>
               <Text style={styles.reviews}>⭐ 254 reviews</Text>
             </View>
             <MaterialIcons name="edit" size={20} color="green" />
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </View>

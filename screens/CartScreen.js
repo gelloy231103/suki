@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,748 +6,429 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  FlatList,
-  Dimensions,
-  TextInput,
-  Animated,
-  PanResponder,
   Alert,
+  Platform,
+  Pressable,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+const defaultImage = require('../assets/tomatoes.png');
 
 const CartScreen = () => {
   const navigation = useNavigation();
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedItems, setSelectedItems] = useState([]);
-  const swipeAnimations = useRef({});
+  const route = useRoute();
+  const [cartItems, setCartItems] = useState([]);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [selectedItems, setSelectedItems] = useState({});
 
-  // Sample data for shops and products
-  const [shops, setShops] = useState([
-    {
-      id: '1',
-      name: 'Tadhana FarmVille',
-      selected: false,
-      products: [
-        {
-          id: '1',
-          name: 'Sweet Tomatoes',
-          prodId: '123456',
-          variant: '1 kg',
-          price: 80,
-          quantity: 2,
-          selected: false,
-          image: require('../assets/tomatoes.png'),
-        },
-        {
-          id: '2',
-          name: 'Broccolicious',
-          prodId: '123456',
-          variant: '1 sack',
-          price: 120,
-          quantity: 1,
-          selected: false,
-          image: require('../assets/broccoli.png'),
-        },
-      ],
-    },
-    {
-      id: '2',
-      name: 'Another Farm',
-      selected: false,
-      products: [
-        {
-          id: '3',
-          name: 'Carrots',
-          prodId: '789012',
-          variant: '1 kg',
-          price: 60,
-          quantity: 3,
-          selected: false,
-          image: require('../assets/carrots.png'),
-        },
-        {
-          id: '4',
-          name: 'Potatoes',
-          prodId: '789012',
-          variant: '1 sack',
-          price: 90,
-          quantity: 2,
-          selected: false,
-          image: require('../assets/carrots.png'),
-        },
-      ],
-    },
-  ]);
+  const getImageSource = (image) => {
+    try {
+      if (!image) return defaultImage;
+      if (typeof image === 'number') return image;
+      if (typeof image === 'string' && image.startsWith('http')) return { uri: image };
+      if (image.uri) return image;
+      
+      // Map product names to their respective images
+      const productImages = {
+        'Sweet Tomatoes': require('../assets/tomatoes.png'),
+        'Biggest Eggplant': require('../assets/eggplant.png'),
+        'Broccolicious': require('../assets/broccoli.png'),
+        'Lettuce Baguio': require('../assets/lettuce.png'),
+        'Fresh Carrots': require('../assets/carrots.png'),
+        'White Onions': require('../assets/onions.png'),
+        'Garlic': require('../assets/garlic.png'),
+        'Potato': require('../assets/potato.png'),
+        'Pumpkin': require('../assets/pumpkin.png'),
+        'Lady Fingers': require('../assets/lady-fingers.png'),
+        'Turnip': require('../assets/turnip.png'),
+      };
 
-  const createPanResponder = (shopId, productId) => {
-    const pan = swipeAnimations.current[`${shopId}-${productId}`] || new Animated.Value(0);
-    swipeAnimations.current[`${shopId}-${productId}`] = pan;
-
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => isEditMode,
-      onMoveShouldSetPanResponder: () => isEditMode,
-      onPanResponderMove: Animated.event(
-        [null, { dx: pan }],
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: (e, gestureState) => {
-        if (gestureState.dx < -50) {
-          Animated.spring(pan, {
-            toValue: -100,
-            useNativeDriver: false,
-          }).start();
-        } else {
-          Animated.spring(pan, {
-            toValue: 0,
-            useNativeDriver: false,
-          }).start();
-        }
-      },
-    });
-  };
-
-  const toggleEditMode = () => {
-    const newEditMode = !isEditMode;
-    setIsEditMode(newEditMode);
-    
-    // Slide all cards when edit mode is toggled
-    Object.keys(swipeAnimations.current).forEach(key => {
-      Animated.spring(swipeAnimations.current[key], {
-        toValue: newEditMode ? -100 : 0,
-        useNativeDriver: false,
-      }).start();
-    });
-
-    // Clear selections when exiting edit mode
-    if (!newEditMode) {
-      setSelectedItems([]);
-      setShops(
-        shops.map(shop => ({
-          ...shop,
-          selected: false,
-          products: shop.products.map(product => ({
-            ...product,
-            selected: false,
-          })),
-        }))
-      );
+      return productImages[image] || defaultImage;
+    } catch (error) {
+      console.log('Image loading error:', error);
+      return defaultImage;
     }
   };
 
-  const toggleShopEditMode = (shopId) => {
-    setShops(shops.map(shop => {
-      if (shop.id === shopId) {
-        // Toggle edit mode for this shop's products
-        shop.products.forEach(product => {
-          const pan = swipeAnimations.current[`${shop.id}-${product.id}`];
-          if (pan) {
-            Animated.spring(pan, {
-              toValue: shop.isEditing ? 0 : -100,
-              useNativeDriver: false,
-            }).start();
+  useEffect(() => {
+    if (route.params?.cartItems) {
+      const newItems = route.params.cartItems;
+      setCartItems(prevItems => {
+        const updatedItems = [...prevItems];
+        newItems.forEach(newItem => {
+          const existingItemIndex = updatedItems.findIndex(
+            item => item.productId === newItem.productId
+          );
+          if (existingItemIndex !== -1) {
+            updatedItems[existingItemIndex].quantity += newItem.quantity;
+          } else {
+            // Ensure price is always a number
+            const price = typeof newItem.price === 'string' ? parseFloat(newItem.price) : Number(newItem.price) || 0;
+            updatedItems.push({
+              ...newItem,
+              price: price
+            });
           }
         });
-        
-        return {
-          ...shop,
-          isEditing: !shop.isEditing
-        };
-      }
-      return shop;
-    }));
-  };
-
-  const toggleSelectAll = () => {
-    const allSelected = selectedItems.length === getTotalProducts();
-    if (allSelected) {
-      setSelectedItems([]);
-      setShops(
-        shops.map(shop => ({
-          ...shop,
-          selected: false,
-          products: shop.products.map(product => ({
-            ...product,
-            selected: false,
-          })),
-        }))
-      );
-    } else {
-      const allProductIds = shops.flatMap(shop =>
-        shop.products.map(product => `${shop.id}-${product.id}`)
-      );
-      setSelectedItems(allProductIds);
-      setShops(
-        shops.map(shop => ({
-          ...shop,
-          selected: true,
-          products: shop.products.map(product => ({
-            ...product,
-            selected: true,
-          })),
-        }))
-      );
+        return updatedItems;
+      });
     }
-  };
+  }, [route.params?.cartItems]);
 
-  const toggleShopSelection = (shopId) => {
-    setShops(shops.map(shop => {
-      if (shop.id === shopId) {
-        const newSelected = !shop.selected;
-        const updatedProducts = shop.products.map(product => ({
-          ...product,
-          selected: newSelected,
-        }));
-        
-        const productKeys = updatedProducts
-          .filter(product => product.selected)
-          .map(product => `${shop.id}-${product.id}`);
-        
-        if (newSelected) {
-          setSelectedItems([...selectedItems, ...productKeys]);
-        } else {
-          setSelectedItems(selectedItems.filter(
-            item => !productKeys.includes(item)
-          ));
-        }
-        
-        return {
-          ...shop,
-          selected: newSelected,
-          products: updatedProducts,
-        };
+  useEffect(() => {
+    const total = cartItems.reduce((sum, item) => {
+      if (selectedItems[item.productId]) {
+        const price = typeof item.price === 'string' ? parseFloat(item.price) : Number(item.price) || 0;
+        return sum + (price * item.quantity);
       }
-      return shop;
-    }));
-  };
-
-  const toggleProductSelection = (shopId, productId) => {
-    setShops(shops.map(shop => {
-      if (shop.id === shopId) {
-        const updatedProducts = shop.products.map(product => {
-          if (product.id === productId) {
-            const newSelected = !product.selected;
-            
-            const productKey = `${shop.id}-${product.id}`;
-            if (newSelected) {
-              setSelectedItems([...selectedItems, productKey]);
-            } else {
-              setSelectedItems(selectedItems.filter(item => item !== productKey));
-            }
-            
-            return {
-              ...product,
-              selected: newSelected,
-            };
-          }
-          return product;
-        });
-        
-        const allProductsSelected = updatedProducts.every(p => p.selected);
-        const someProductsSelected = updatedProducts.some(p => p.selected);
-        
-        return {
-          ...shop,
-          selected: allProductsSelected,
-          products: updatedProducts,
-        };
-      }
-      return shop;
-    }));
-  };
-
-  const updateQuantity = (shopId, productId, newQuantity) => {
-    if (newQuantity < 1) return;
-    
-    setShops(shops.map(shop => {
-      if (shop.id === shopId) {
-        return {
-          ...shop,
-          products: shop.products.map(product => 
-            product.id === productId ? { ...product, quantity: newQuantity } : product
-          ),
-        };
-      }
-      return shop;
-    }));
-  };
-
-  const deleteProduct = (shopId, productId) => {
-    setShops(shops.map(shop => {
-      if (shop.id === shopId) {
-        return {
-          ...shop,
-          products: shop.products.filter(product => product.id !== productId),
-        };
-      }
-      return shop;
-    }));
-    
-    // Remove from selected items if it was selected
-    setSelectedItems(selectedItems.filter(item => item !== `${shopId}-${productId}`));
-  };
-
-  const deleteSelectedItems = () => {
-  setShops(
-    shops
-      .map(shop => ({
-        ...shop,
-        products: shop.products.filter(product =>
-          !selectedItems.includes(`${shop.id}-${product.id}`)
-        ),
-      }))
-      .filter(shop => shop.products.length > 0) // <- this closes properly now
-  );
-  setSelectedItems([]);
-};
-
-
-  const getTotalProducts = () => {
-    return shops.reduce((total, shop) => total + shop.products.length, 0);
-  };
-
-  const calculateTotal = () => {
-    return selectedItems.reduce((total, itemKey) => {
-      const [shopId, productId] = itemKey.split('-');
-      const shop = shops.find(s => s.id === shopId);
-      if (shop) {
-        const product = shop.products.find(p => p.id === productId);
-        if (product) {
-          return total + (product.price * product.quantity);
-        }
-      }
-      return total;
+      return sum;
     }, 0);
+    setTotalAmount(total);
+  }, [cartItems, selectedItems]);
+
+  const formatPrice = (price) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price) || 0;
+    return `₱${numPrice.toFixed(2)}`;
   };
 
-  const renderShopCard = ({ item: shop }) => (
-    <View style={styles.shopCard}>
-      {/* Shop Header */}
-      <View style={styles.shopHeader}>
-        <TouchableOpacity 
-          onPress={() => toggleShopSelection(shop.id)}
-          style={styles.checkbox}
-        >
-          <Icon 
-            name={shop.selected ? "check-box" : "check-box-outline-blank"} 
-            size={24} 
-            color="#fff" 
-          />
+  const handleQuantityChange = (productId, change) => {
+    setCartItems(prevItems =>
+      prevItems.map(item => {
+        if (item.productId === productId) {
+          const newQuantity = item.quantity + change;
+          if (newQuantity < 1) {
+            Alert.alert(
+              'Remove Item',
+              'Do you want to remove this item from cart?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Remove',
+                  onPress: () => {
+                    setCartItems(prev =>
+                      prev.filter(i => i.productId !== productId)
+                    );
+                    setSelectedItems(prev => {
+                      const updated = { ...prev };
+                      delete updated[productId];
+                      return updated;
+                    });
+                  },
+                },
+              ]
+            );
+            return item;
+          }
+          return { ...item, quantity: newQuantity };
+        }
+        return item;
+      })
+    );
+  };
+
+  const toggleItemSelection = (productId) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }));
+  };
+
+  const handleCheckout = () => {
+    if (Object.keys(selectedItems).length === 0) {
+      Alert.alert('Select Items', 'Please select items to checkout');
+      return;
+    }
+    const selectedCartItems = cartItems.filter(item => selectedItems[item.productId]);
+    
+    // First navigate to checkout
+    navigation.navigate('CheckOut', { 
+      cartItems: selectedCartItems,
+      onCheckoutComplete: () => {
+        // After checkout is complete, reset to main tab
+        navigation.reset({
+          index: 0,
+          routes: [
+            { 
+              name: 'MainTab',
+              state: {
+                routes: [
+                  { name: 'Home' }
+                ]
+              }
+            }
+          ],
+        });
+      }
+    });
+  };
+
+  const groupedItems = cartItems.reduce((groups, item) => {
+    const farmId = item.farmId || 'unknown';
+    if (!groups[farmId]) {
+      groups[farmId] = {
+        farmName: item.farmName || 'Unknown Farm',
+        items: []
+      };
+    }
+    groups[farmId].items.push(item);
+    return groups;
+  }, {});
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
-        <Icon name="home" size={20} color="#fff" style={styles.barnIcon} />
-        <Text style={styles.shopName}>{shop.name}</Text>
-        <TouchableOpacity 
-          onPress={() => toggleShopEditMode(shop.id)}
-          style={styles.editButton}
-        >
-          <Text style={styles.editButtonText}>Edit</Text>
+        <Text style={styles.headerTitle}>SHOPPING CART</Text>
+        <TouchableOpacity style={styles.editButton}>
+          <Text style={styles.editText}>Edit</Text>
         </TouchableOpacity>
       </View>
-      
-      {/* Product Cards */}
-      {shop.products.map(product => {
-        const panResponder = createPanResponder(shop.id, product.id);
-        const pan = swipeAnimations.current[`${shop.id}-${product.id}`] || new Animated.Value(0);
 
-        return (
-          <View key={`${shop.id}-${product.id}`} style={styles.productContainer}>
-            <Animated.View
-              style={[
-                styles.productCard,
-                {
-                  transform: [{ translateX: pan }],
-                },
-              ]}
-              {...panResponder.panHandlers}
-            >
-              <TouchableOpacity 
-                onPress={() => toggleProductSelection(shop.id, product.id)}
-                style={styles.productCheckbox}
-              >
-                <Icon 
-                  name={product.selected ? "check-box" : "check-box-outline-blank"} 
-                  size={24} 
-                  color={product.selected ? "#9DCD5A" : "#BDBDBD"} 
-                />
+      <ScrollView style={styles.cartList}>
+        {Object.entries(groupedItems).map(([farmId, { farmName, items }]) => (
+          <View key={farmId} style={styles.farmGroup}>
+            <View style={styles.farmHeader}>
+              <Pressable style={styles.checkbox}>
+                <Icon name="check" size={18} color="#FFF" />
+              </Pressable>
+              <Icon name="store" size={20} color="#9DCD5A" style={styles.farmIcon} />
+              <Text style={styles.farmName}>{farmName}</Text>
+              <TouchableOpacity style={styles.editButton}>
+                <Text style={styles.editText}>Edit</Text>
               </TouchableOpacity>
-              
-              <View style={styles.productImageContainer}>
-                <Image source={product.image} style={styles.productImage} />
-              </View>
-              
-              <View style={styles.productDetails}>
-                <View style={styles.productInfoRow}>
-                  <View>
-                    <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productId}>Prod ID: {product.prodId}</Text>
-                    <Text style={styles.productVariant}>Variant: {product.variant}</Text>
-                  </View>
-                  
-                  <View style={styles.quantityContainer}>
-                    <View style={styles.quantityControls}>
-                      <TouchableOpacity 
-                        onPress={() => updateQuantity(shop.id, product.id, product.quantity - 1)}
-                        style={styles.quantityButton}
-                      >
-                        <Text style={styles.quantityButtonText}>-</Text>
-                      </TouchableOpacity>
-                      <TextInput
-                        style={styles.quantityInput}
-                        value={product.quantity.toString()}
-                        keyboardType="numeric"
-                        onChangeText={(text) => {
-                          const num = parseInt(text) || 0;
-                          updateQuantity(shop.id, product.id, num);
-                        }}
-                      />
-                      <TouchableOpacity 
-                        onPress={() => updateQuantity(shop.id, product.id, product.quantity + 1)}
-                        style={styles.quantityButton}
-                      >
-                        <Text style={styles.quantityButtonText}>+</Text>
-                      </TouchableOpacity>
-                    </View>
+            </View>
+
+            {items.map((item) => (
+              <View key={item.productId} style={styles.cartItem}>
+                <Pressable 
+                  style={[
+                    styles.checkbox,
+                    selectedItems[item.productId] && styles.checkboxSelected
+                  ]}
+                  onPress={() => toggleItemSelection(item.productId)}
+                >
+                  {selectedItems[item.productId] && (
+                    <Icon name="check" size={18} color="#FFF" />
+                  )}
+                </Pressable>
+                <Image
+                  source={getImageSource(item.image)}
+                  style={styles.productImage}
+                  resizeMode="cover"
+                  defaultSource={defaultImage}
+                />
+                <View style={styles.itemDetails}>
+                  <Text style={styles.productName}>{item.productName}</Text>
+                  <Text style={styles.variantText}>
+                    {item.quantity} {item.unit || 'piece'}
+                  </Text>
+                  <Text style={styles.priceText}>
+                    {formatPrice(item.price)} × {item.quantity} = {formatPrice(item.price * item.quantity)}
+                  </Text>
+                  <View style={styles.quantityControls}>
+                    <TouchableOpacity
+                      style={styles.quantityButton}
+                      onPress={() => handleQuantityChange(item.productId, -1)}
+                    >
+                      <Text style={styles.quantityButtonText}>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.quantity}>{item.quantity}</Text>
+                    <TouchableOpacity
+                      style={styles.quantityButton}
+                      onPress={() => handleQuantityChange(item.productId, 1)}
+                    >
+                      <Text style={styles.quantityButtonText}>+</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
-            </Animated.View>
-            
-            {(isEditMode || shop.isEditing) && (
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => {
-                  Alert.alert(
-                    'Delete Product',
-                    'Are you sure you want to remove this product from your cart?',
-                    [
-                      {
-                        text: 'Cancel',
-                        style: 'cancel',
-                      },
-                      {
-                        text: 'Delete',
-                        onPress: () => deleteProduct(shop.id, product.id),
-                        style: 'destructive',
-                      },
-                    ]
-                  );
-                }}
-              >
-                <Icon name="delete" size={24} color="#fff" />
-              </TouchableOpacity>
-            )}
+            ))}
           </View>
-        );
-      })}
-      
-      {/* Shop Footer */}
-      <View style={styles.shopFooter}>
-        <Text style={styles.shopFooterText}>Subtotal: ₱{
-          shop.products.reduce((sum, product) => sum + (product.price * product.quantity), 0)
-        }</Text>
+        ))}
+      </ScrollView>
+
+      <View style={styles.bottomSection}>
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalAmount}>{formatPrice(totalAmount)}</Text>
+        </View>
+        <TouchableOpacity
+          style={[
+            styles.checkoutButton,
+            Object.keys(selectedItems).length === 0 && styles.disabledButton,
+          ]}
+          onPress={handleCheckout}
+          disabled={Object.keys(selectedItems).length === 0}
+        >
+          <Text style={styles.checkoutButtonText}>
+            Check Out ({Object.keys(selectedItems).length})
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
-  );
-
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>SHOPPING CART</Text>
-          <TouchableOpacity onPress={toggleEditMode}>
-            <Text style={styles.editButtonText}>
-              {isEditMode ? 'Done' : 'Edit'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Body */}
-        <FlatList
-          data={shops}
-          renderItem={renderShopCard}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          ListFooterComponent={() => (
-            <Text style={styles.noMoreItems}>No more items to show</Text>
-          )}
-        />
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <View style={styles.footerRow}>
-            <TouchableOpacity 
-              onPress={toggleSelectAll}
-              style={styles.footerCheckbox}
-            >
-              <Icon 
-                name={selectedItems.length === getTotalProducts() ? 
-                  "check-box" : "check-box-outline-blank"} 
-                size={24} 
-                color={selectedItems.length === getTotalProducts() ? 
-                  "#9DCD5A" : "#BDBDBD"} 
-              />
-              <Text style={styles.footerCheckboxText}>All</Text>
-            </TouchableOpacity>
-            
-            <View style={styles.totalContainer}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>₱{calculateTotal()}</Text>
-            </View>
-            
-            <TouchableOpacity 
-              onPress={isEditMode ? deleteSelectedItems : () => {}}
-              style={[
-                styles.checkoutButton,
-                isEditMode && styles.deleteButtonStyle
-              ]}
-            >
-              <Text style={[
-                styles.checkoutButtonText,
-                isEditMode && styles.deleteButtonText
-              ]}>
-                {isEditMode ? 'Delete' : 'Check Out'} ({selectedItems.length})
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </GestureHandlerRootView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F5F5F5',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop:36,
+    justifyContent: 'space-between',
     padding: 16,
     backgroundColor: '#9DCD5A',
+    paddingTop: Platform.OS === 'ios' ? 50 : 16,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontFamily: 'Poppins-SemiBold',
+    color: '#FFF',
   },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  listContent: {
-    paddingBottom: 80,
-    paddingTop: 10,
-  },
-  shopCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    margin: 10,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  shopHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#9DCD5A',
-  },
-  checkbox: {
-    marginRight: 8,
-  },
-  barnIcon: {
-    marginRight: 8,
-  },
-  shopName: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+  backButton: {
+    padding: 8,
   },
   editButton: {
-    paddingHorizontal: 10,
+    padding: 8,
   },
-  productContainer: {
-    flexDirection: 'row',
-    overflow: 'hidden',
+  editText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
   },
-  productCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
-    width: Dimensions.get('window').width - 20,
-  },
-  deleteButton: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 80,
-    backgroundColor: '#FF4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productCheckbox: {
-    marginRight: 10,
-  },
-  productImageContainer: {
-    width: 80,
-    height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    marginRight: 15,
-  },
-  productImage: {
-    width: '80%',
-    height: '80%',
-    resizeMode: 'contain',
-  },
-  productDetails: {
+  cartList: {
     flex: 1,
   },
-  productInfoRow: {
+  farmGroup: {
+    backgroundColor: '#FFF',
+    marginBottom: 8,
+  },
+  farmHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
+  },
+  farmIcon: {
+    marginRight: 8,
+  },
+  farmName: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: '#333',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#9DCD5A',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#9DCD5A',
+  },
+  cartItem: {
+    flexDirection: 'row',
+    padding: 12,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
+  },
+  productImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  itemDetails: {
     flex: 1,
   },
   productName: {
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  variantText: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 8,
+  },
+  priceText: {
     fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  productId: {
-    fontSize: 12,
-    color: '#777',
-    marginBottom: 4,
-  },
-  productVariant: {
-    fontSize: 12,
-    color: '#777',
-    marginBottom: 4,
-  },
-  quantityContainer: {
-    alignItems: 'flex-end',
+    color: '#9DCD5A',
+    fontFamily: 'Poppins-SemiBold',
+    marginVertical: 4,
   },
   quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#9DCD5A',
-    borderRadius: 4,
-    overflow: 'hidden',
-    top: 20,
   },
   quantityButton: {
+    width: 24,
+    height: 24,
     backgroundColor: '#9DCD5A',
-    width: 35,
-    height: 35,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   quantityButtonText: {
+    color: '#FFF',
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontFamily: 'Poppins-Bold',
   },
-  quantityInput: {
-    width: 35,
-    height: 35,
-    textAlign: 'center',
-    backgroundColor: '#fff',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: '#9DCD5A',
+  quantity: {
+    marginHorizontal: 12,
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
   },
-  shopFooter: {
-    backgroundColor: '#9DCD5A',
-    padding: 10,
-  },
-  shopFooterText: {
-    color: '#fff',
-    textAlign: 'right',
-    fontWeight: 'bold',
-  },
-  noMoreItems: {
-    textAlign: 'center',
-    color: '#BDBDBD',
-    marginVertical: 20,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    padding: 15,
+  bottomSection: {
+    backgroundColor: '#FFF',
+    padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    borderTopColor: '#EEE',
   },
-  footerRow: {
+  totalRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  footerCheckbox: {
-    flexDirection: 'row',
     alignItems: 'center',
-  },
-  footerCheckboxText: {
-    marginLeft: 5,
-    fontSize: 16,
-  },
-  totalContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 12,
   },
   totalLabel: {
     fontSize: 16,
-    marginRight: 5,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
   },
-  totalValue: {
+  totalAmount: {
     fontSize: 18,
-    fontWeight: 'bold',
     color: '#9DCD5A',
+    fontFamily: 'Poppins-Bold',
   },
   checkoutButton: {
     backgroundColor: '#9DCD5A',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   checkoutButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: '#FFF',
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
   },
-  deleteButtonStyle: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#FF4444',
-  },
-  deleteButtonText: {
-    color: '#FF4444',
+  disabledButton: {
+    backgroundColor: '#CCC',
   },
 });
 
