@@ -44,6 +44,7 @@
     "react-native-gesture-handler": "~2.20.2",
     "react-native-image-picker": "^8.2.1",
     "react-native-maps": "1.18.0",
+    "react-native-mime-types": "^2.5.0",
     "react-native-modal-datetime-picker": "^18.0.0",
     "react-native-paper": "^5.14.1",
     "react-native-password-strength-meter-bar": "^1.2.0",
@@ -56,9 +57,7 @@
     "react-native-swiper-flatlist": "^3.2.5",
     "react-native-uuid": "^2.0.3",
     "react-native-vector-icons": "^10.2.0",
-    "zxcvbn": "^4.4.2",
-    "react-native-maps": "1.18.0",
-    "expo-notifications": "~0.29.14"
+    "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
