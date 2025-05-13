@@ -13,25 +13,12 @@ import {
   Easing,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
-  Modal,
-  TouchableWithoutFeedback
+  Platform
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { 
-  doc, 
-  getDoc, 
-  collection, 
-  getDocs,
-  query,
-  where,
-  writeBatch 
-} from 'firebase/firestore';  // Add these imports
-import { db, auth } from '../config/firebase';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 const FocusedProductScreen = () => {
   const navigation = useNavigation();
@@ -40,96 +27,63 @@ const FocusedProductScreen = () => {
   const [quantity, setQuantity] = useState(1);
   const [voucher, setVoucher] = useState('');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [product, setProduct] = useState(null);
-  const [farm, setFarm] = useState(null);
-  const [showOrderSummary, setShowOrderSummary] = useState(false);
-  const [deliveryOption, setDeliveryOption] = useState(null);
-  const [deliveryDate, setDeliveryDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [user, setUser] = useState(null);
-  const [userAddresses, setUserAddresses] = useState([]);
-  const [defaultAddress, setDefaultAddress] = useState(null);
   const scaleValue = new Animated.Value(1);
+  const [product, setProduct] = useState(route.params?.product);
+  const scrollViewRef = React.useRef();
 
-  // Get product and farm data from Firebase
+  // Get product data from Firebase
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchProduct = async () => {
       try {
         const productId = route.params?.productId;
+        if (product) {
+          // If product was passed via params, use that
+          setLoading(false);
+          return;
+        }
+
         if (!productId) {
           console.error('No product ID provided');
           return;
         }
 
-        // Fetch product
         const productRef = doc(db, 'products', productId);
         const productSnap = await getDoc(productRef);
 
         if (productSnap.exists()) {
-          const productData = productSnap.data();
-          setProduct({
+          const productData = {
             id: productSnap.id,
-            ...productData,
-            formattedPrice: `₱${productData.price.toFixed(2)}${productData.unit ? `/${productData.unit.toLowerCase()}` : ''}`,
-            discountPrice: productData.discount?.percentage 
-              ? `₱${(productData.price * (1 - productData.discount.percentage/100)).toFixed(2)}`
+            ...productSnap.data(),
+            formattedPrice: `₱${productSnap.data().price.toFixed(2)}/${productSnap.data().unit.toLowerCase()}`,
+            discountPrice: productSnap.data().discount?.percentage 
+              ? `₱${(productSnap.data().price * (1 - productSnap.data().discount.percentage/100)).toFixed(2)}`
               : null
-          });
-
-          // Fetch farm if available
+          };
+          setProduct(productData);
+          
+          // Also fetch farm data if needed
           if (productData.farmId) {
             const farmRef = doc(db, 'farms', productData.farmId);
             const farmSnap = await getDoc(farmRef);
             if (farmSnap.exists()) {
-              setFarm(farmSnap.data());
+              setProduct(prev => ({
+                ...prev,
+                farmName: farmSnap.data().farmName || farmSnap.data().name,
+              }));
             }
           }
         } else {
           console.error('Product not found');
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching product:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    const fetchUserData = async () => {
-      try {
-        const userId = auth.currentUser?.uid;
-        if (!userId) return;
-
-        // Fetch user data
-        const userRef = doc(db, 'users', userId);
-        const userSnap = await getDoc(userRef);
-        
-        if (userSnap.exists()) {
-          setUser(userSnap.data());
-        }
-
-        // Fetch addresses subcollection
-        const addressesRef = collection(db, 'users', userId, 'addresses');
-        const addressesSnap = await getDocs(addressesRef);
-        
-        const addressesData = [];
-        addressesSnap.forEach(doc => {
-          const address = { id: doc.id, ...doc.data() };
-          addressesData.push(address);
-          if (address.isDefault) {
-            setDefaultAddress(address);
-          }
-        });
-        
-        setUserAddresses(addressesData);
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      }
-    };
-
-    fetchUserData();
-
-    fetchData();
-  }, [route.params?.productId]);
+    fetchProduct();
+  }, [route.params?.productId, product]);
 
   const animateButton = () => {
     Animated.sequence([
@@ -162,34 +116,36 @@ const FocusedProductScreen = () => {
   const addToCart = () => {
     if (!product) return;
     
+    // Prepare the cart item
+    const cartItem = {
+      farmId: product.farmId,
+      farmName: product.farmName || product.farm || 'Unknown Farm',
+      productId: product.id,
+      productName: product.name,
+      variant: product.variant || product.unit,
+      price: product.price,
+      quantity: quantity,
+      image: product.images?.[0] ? { uri: product.images[0] } : require('../assets/tomatoes.png')
+    };
+
+    // Navigate to CartScreen with the new item
     navigation.navigate('CartScreen', { 
-      cartItem: {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: quantity,
-        unit: product.unit,
-        image: product.images?.[0] || null,
-        farmId: product.farmId
-      }
+      cartItems: [cartItem],
+      merge: true // This will merge with existing navigation params
     });
+
+    // Show feedback to user
+    Alert.alert(
+      'Added to Cart',
+      `${quantity} ${product.unit.toLowerCase()} of ${product.name} has been added to your cart`,
+      [
+        { text: 'OK', onPress: () => {} }
+      ]
+    );
   };
 
-  const handleBuyNow = () => {
-  if (!product) return;
-    
-    // Only set default delivery option if none is selected
-    if (!deliveryOption && product.deliveryOptions) {
-      if (product.deliveryOptions.pickup) {
-        setDeliveryOption('pickup');
-      } else if (product.deliveryOptions.delivery) {
-        setDeliveryOption('delivery');
-      } else if (product.deliveryOptions.shipping) {
-        setDeliveryOption('shipping');
-      }
-    }
-    
-    setShowOrderSummary(true);
+  const navigateToCart = () => {
+    navigation.navigate('CartScreen');
   };
 
   const renderRatingStars = (rating) => {
@@ -214,266 +170,6 @@ const FocusedProductScreen = () => {
     }
     
     return <View style={styles.starsContainer}>{stars}</View>;
-  };
-
-  const renderDeliveryOptions = () => {
-    if (!product?.deliveryOptions) return null;
-
-    return (
-      <View style={styles.deliveryOptionsContainer}>
-        <Text style={styles.sectionTitle}>Delivery Options</Text>
-        <View style={styles.optionsRow}>
-          {product.deliveryOptions.pickup && (
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                deliveryOption === 'pickup' && styles.selectedOption
-              ]}
-              onPress={() => setDeliveryOption('pickup')}
-            >
-              <Icon 
-                name="store" 
-                size={20} 
-                color={deliveryOption === 'pickup' ? '#FFF' : '#9DCD5A'} 
-              />
-              <Text style={[
-                styles.optionText,
-                deliveryOption === 'pickup' && styles.selectedOptionText
-              ]}>
-                Pickup
-              </Text>
-            </TouchableOpacity>
-          )}
-          
-          {product.deliveryOptions.delivery && (
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                deliveryOption === 'delivery' && styles.selectedOption
-              ]}
-              onPress={() => setDeliveryOption('delivery')}
-            >
-              <Icon 
-                name="local-shipping" 
-                size={20} 
-                color={deliveryOption === 'delivery' ? '#FFF' : '#9DCD5A'} 
-              />
-              <Text style={[
-                styles.optionText,
-                deliveryOption === 'delivery' && styles.selectedOptionText
-              ]}>
-                Delivery
-              </Text>
-            </TouchableOpacity>
-          )}
-          
-          {product.deliveryOptions.shipping && (
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                deliveryOption === 'shipping' && styles.selectedOption
-              ]}
-              onPress={() => setDeliveryOption('shipping')}
-            >
-              <Icon 
-                name="flight" 
-                size={20} 
-                color={deliveryOption === 'shipping' ? '#FFF' : '#9DCD5A'} 
-              />
-              <Text style={[
-                styles.optionText,
-                deliveryOption === 'shipping' && styles.selectedOptionText
-              ]}>
-                Shipping
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        {deliveryOption && (
-          <TouchableOpacity
-            style={styles.datePickerButton}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Icon name="calendar-today" size={18} color="#9DCD5A" />
-            <Text style={styles.datePickerText}>
-              {deliveryDate.toLocaleDateString('en-US', { 
-                weekday: 'short', 
-                month: 'short', 
-                day: 'numeric' 
-              })}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-
-  const renderOrderSummary = () => {
-    if (!product) return null;
-
-    const subtotal = product.price * quantity;
-    const discount = product.discount?.percentage ? subtotal * (product.discount.percentage / 100) : 0;
-    const total = subtotal - discount;
-
-    return (
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showOrderSummary}
-        onRequestClose={() => setShowOrderSummary(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setShowOrderSummary(false)}>
-          <View style={styles.modalOverlay} />
-        </TouchableWithoutFeedback>
-        
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Order Summary</Text>
-            <TouchableOpacity onPress={() => setShowOrderSummary(false)}>
-              <Icon name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.modalContent}>
-            {/* Product Info */}
-            <View style={styles.summaryItem}>
-              <Image
-                source={{ uri: product.images?.[0] || '' }}
-                style={styles.summaryImage}
-                resizeMode="cover"
-              />
-              <View style={styles.summaryDetails}>
-                <Text style={styles.summaryName}>{product.name}</Text>
-                <Text style={styles.summaryPrice}>₱{product.price.toFixed(2)}/{product.unit}</Text>
-                <Text style={styles.summaryQuantity}>Qty: {quantity}</Text>
-              </View>
-            </View>
-            
-            {/* Delivery Option */}
-            <View style={styles.summarySection}>
-              <Text style={styles.summaryLabel}>Delivery Method</Text>
-              <View style={styles.deliveryMethod}>
-                <Icon 
-                  name={
-                    deliveryOption === 'pickup' ? 'store' :
-                    deliveryOption === 'delivery' ? 'local-shipping' : 'flight'
-                  } 
-                  size={20} 
-                  color="#9DCD5A" 
-                />
-                <Text style={styles.deliveryText}>
-                  {deliveryOption === 'pickup' ? 'Pickup' :
-                   deliveryOption === 'delivery' ? 'Local Delivery' : 'Shipping'}
-                </Text>
-              </View>
-              <Text style={styles.deliveryDate}>
-                Scheduled for {deliveryDate.toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </Text>
-            </View>
-            
-            {/* Price Breakdown */}
-            <View style={styles.summarySection}>
-              <Text style={styles.summaryLabel}>Price Breakdown</Text>
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Subtotal:</Text>
-                <Text style={styles.priceValue}>₱{subtotal.toFixed(2)}</Text>
-              </View>
-              {discount > 0 && (
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Discount ({product.discount.percentage}%):</Text>
-                  <Text style={[styles.priceValue, styles.discountValue]}>-₱{discount.toFixed(2)}</Text>
-                </View>
-              )}
-              <View style={[styles.priceRow, styles.totalRow]}>
-                <Text style={[styles.priceLabel, styles.totalLabel]}>Total:</Text>
-                <Text style={[styles.priceValue, styles.totalValue]}>₱{total.toFixed(2)}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.summarySection}>
-              <Text style={styles.summaryLabel}>Buyer Information</Text>
-              <View style={styles.infoRow}>
-                <Icon name="person" size={18} color="#9DCD5A" />
-                <Text style={styles.infoText}>
-                  {user?.firstName} {user?.lastName}
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Icon name="phone" size={18} color="#9DCD5A" />
-                <Text style={styles.infoText}>
-                  {user?.phone || 'No phone number provided'}
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Icon name="email" size={18} color="#9DCD5A" />
-                <Text style={styles.infoText}>
-                  {auth.currentUser?.email || 'No email provided'}
-                </Text>
-              </View>
-              {deliveryOption !== 'pickup' && (
-              <View>
-                <Text style={styles.addressTitle}>Delivery Address:</Text>
-                {defaultAddress ? (
-                  <View style={styles.addressContainer}>
-                    <Icon name="location-on" size={18} color="#9DCD5A" />
-                    <View style={styles.addressTextContainer}>
-                      <Text style={styles.addressText}>
-                        {defaultAddress.street}, {defaultAddress.barangay}
-                      </Text>
-                      <Text style={styles.addressText}>
-                        {defaultAddress.city}, {defaultAddress.province} {defaultAddress.postalCode}
-                      </Text>
-                      <Text style={styles.addressType}>
-                        ({defaultAddress.type})
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  <Text style={styles.infoText}>No address provided</Text>
-                )}
-              </View>
-            )}
-            </View>
-          </ScrollView>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity 
-              style={styles.confirmButton}
-              onPress={() => {
-              setShowOrderSummary(false);
-              navigation.navigate('Payment', { 
-                order: {
-                  product: {
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    unit: product.unit,
-                    discount: product.discount,
-                    images: product.images,
-                    stock: product.stock,
-                    farmId: product.farmId
-                  },
-                  quantity,
-                  deliveryOption,
-                  deliveryDate,
-                  subtotal: product.price * quantity,
-                  total: (product.price * quantity) - (product.discount?.percentage ? 
-                    (product.price * quantity * (product.discount.percentage / 100)) : 0)
-                }
-              });
-            }}
-            >
-              <Text style={styles.confirmButtonText}>CONFIRM ORDER</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
   };
 
   if (loading) {
@@ -507,21 +203,31 @@ const FocusedProductScreen = () => {
     >
       <ScrollView 
         style={styles.container}
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header with Back Button */}
+        {/* Header with Search */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Icon name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Product Details</Text>
-          <View style={{ width: 24 }} /> {/* Spacer */}
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search for products..."
+            placeholderTextColor="#888"
+          />
+          <TouchableOpacity 
+            style={styles.cartIcon}
+            onPress={navigateToCart}
+          >
+            <Icon name="shopping-cart" size={24} color="#333" />
+          </TouchableOpacity>
         </View>
 
         {/* Product Images Carousel */}
         <View style={styles.imageCarousel}>
-          {product.images?.length > 0 ? (
+          {(product.images || []).length > 0 ? (
             <Image
               source={{ uri: product.images[activeImageIndex] }}
               style={styles.productImage}
@@ -549,6 +255,13 @@ const FocusedProductScreen = () => {
               ))}
             </View>
           )}
+          
+          <TouchableOpacity 
+            style={styles.heartIcon}
+            onPress={animateButton}
+          >
+            <Icon name="favorite" size={24} color="#FF5252" />
+          </TouchableOpacity>
           
           {product.discount?.percentage && (
             <View style={styles.discountBadge}>
@@ -579,109 +292,112 @@ const FocusedProductScreen = () => {
             </Text>
           </View>
 
-          <View style={styles.metaRow}>
-            <View style={styles.ratingContainer}>
-              {renderRatingStars(product.rating?.average || 0)}
-              <Text style={styles.reviewText}>
-                ({product.rating?.count || 0} reviews)
-              </Text>
-            </View>
+          <View style={styles.ratingRow}>
+            {renderRatingStars(product.rating?.average || 3.4)}
+            <Text style={styles.reviewText}>
+              ({product.rating?.count || 32} reviews)
+            </Text>
             <Text style={styles.stockText}>
-              {product.stock} {product.unit.toLowerCase()} available
+              • {product.stock} {product.unit.toLowerCase()} available
             </Text>
           </View>
 
-          {/* Product Info Sections */}
-          <View style={styles.infoSection}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.productDescription}>
-              {product.description || 'No description available'}
-            </Text>
-          </View>
+          <Text style={styles.productDescription}>
+            {product.description || 'No description available'}
+          </Text>
 
           {product.tags?.length > 0 && (
-            <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>Tags</Text>
-              <View style={styles.tagsContainer}>
-                {product.tags.map((tag, index) => (
-                  <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>{tag}</Text>
-                  </View>
-                ))}
-              </View>
+            <View style={styles.tagsContainer}>
+              {product.tags.map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
             </View>
           )}
 
           {/* Quantity Selector */}
-          <View style={styles.infoSection}>
+          <View style={styles.quantitySection}>
             <Text style={styles.sectionTitle}>Quantity</Text>
             <View style={styles.quantityRow}>
               <View style={styles.quantityContainer}>
-                <TouchableOpacity 
-                  onPress={handleDecrease}
-                  style={[
-                    styles.quantityButton,
-                    quantity <= (product.minimumOrder || 1) && styles.disabledButton
-                  ]}
-                  disabled={quantity <= (product.minimumOrder || 1)}
-                >
-                  <Text style={styles.quantityButtonText}>-</Text>
-                </TouchableOpacity>
-                <TextInput
-                  style={styles.quantityInput}
-                  value={quantity.toString()}
-                  keyboardType="numeric"
-                  onChangeText={(text) => {
-                    const num = parseInt(text) || 0;
-                    if (num >= (product.minimumOrder || 1)) {
-                      setQuantity(num);
-                    }
-                  }}
-                />
-                <TouchableOpacity 
-                  onPress={handleIncrease}
-                  style={styles.quantityButton}
-                >
-                  <Text style={styles.quantityButtonText}>+</Text>
-                </TouchableOpacity>
+                <View style={styles.quantityControls}>
+                  <TouchableOpacity 
+                    onPress={handleDecrease}
+                    style={[
+                      styles.quantityButton,
+                      quantity <= (product.minimumOrder || 1) && styles.disabledButton
+                    ]}
+                    disabled={quantity <= (product.minimumOrder || 1)}
+                  >
+                    <Text style={styles.quantityButtonText}>-</Text>
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.quantityInput}
+                    value={quantity.toString()}
+                    keyboardType="numeric"
+                    onChangeText={(text) => {
+                      const num = parseInt(text) || 0;
+                      if (num >= (product.minimumOrder || 1)) {
+                        setQuantity(num);
+                      }
+                    }}
+                  />
+                  <TouchableOpacity 
+                    onPress={handleIncrease}
+                    style={styles.quantityButton}
+                  >
+                    <Text style={styles.quantityButtonText}>+</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <Text style={styles.unitText}>{product.unit.toLowerCase()}</Text>
             </View>
           </View>
 
-          {/* Delivery Options */}
-          {renderDeliveryOptions()}
+          {/* Voucher Section */}
+          <View style={styles.voucherSection}>
+            <Text style={styles.sectionTitle}>Apply Voucher</Text>
+            <View style={styles.voucherInputContainer}>
+              <TextInput
+                style={styles.voucherInput}
+                placeholder="Enter voucher code"
+                placeholderTextColor="#888"
+                value={voucher}
+                onChangeText={setVoucher}
+                onSubmitEditing={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+              />
+              <TouchableOpacity style={styles.applyButton}>
+                <Text style={styles.applyButtonText}>APPLY</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {/* Farm Location */}
-          <View style={styles.infoSection}>
-            <Text style={styles.sectionTitle}>Farm Information</Text>
+          <View style={styles.farmSection}>
+            <Text style={styles.sectionTitle}>Farm Location</Text>
             <View style={styles.farmInfo}>
               <Icon name="home" size={20} color="#9DCD5A" />
-              <Text style={styles.farmName}>{farm?.name || product.farmId || 'Local Farm'}</Text>
+              <Text style={styles.farmName}>{product.farmName || product.farm || 'Tadhana Farm Ville'}</Text>
             </View>
             
-            {farm?.location && (
-              <MapView
-                style={styles.map}
-                initialRegion={{
-                  latitude: farm.location.latitude || 14.670605106704915,
-                  longitude: farm.location.longitude || 121.33927325892779,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                scrollEnabled={false}
-                zoomEnabled={false}
-              >
-                <Marker
-                  coordinate={{ 
-                    latitude: farm.location.latitude || 14.670605106704915, 
-                    longitude: farm.location.longitude || 121.33927325892779 
-                  }}
-                  title={farm?.name || 'Local Farm'}
-                  description={product.name}
-                />
-              </MapView>
-            )}
+            <MapView
+              style={styles.map}
+              initialRegion={{
+                latitude: 14.670605106704915,
+                longitude: 121.33927325892779,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+            >
+              <Marker
+                coordinate={{ latitude: 14.670605106704915, longitude: 121.33927325892779 }}
+                title={product.farmName || product.farm || 'Local Farm'}
+                description={product.name}
+              />
+            </MapView>
             
             <TouchableOpacity style={styles.chatButton}>
               <Icon name="chat" size={20} color="#9DCD5A" style={styles.chatIcon} />
@@ -690,7 +406,7 @@ const FocusedProductScreen = () => {
           </View>
         </View>
 
-        {/* Spacer for bottom buttons */}
+        {/* Fixed Bottom Buttons */}
         <View style={styles.spacer} />
       </ScrollView>
 
@@ -706,43 +422,27 @@ const FocusedProductScreen = () => {
         
         <TouchableOpacity 
           style={styles.buyNowButton}
-          onPress={handleBuyNow}
+          onPress={() => {
+            addToCart();
+            navigation.navigate('CheckOut');
+          }}
         >
           <Text style={styles.buyNowText}>BUY NOW</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Order Summary Modal */}
-      {renderOrderSummary()}
-
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={deliveryDate}
-          mode="date"
-          display="default"
-          minimumDate={new Date()}
-          onChange={(event, selectedDate) => {
-            setShowDatePicker(false);
-            if (selectedDate) {
-              setDeliveryDate(selectedDate);
-            }
-          }}
-        />
-      )}
     </KeyboardAvoidingView>
   );
 };
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 30,
     flex: 1,
     backgroundColor: '#FFF',
   },
   scrollContent: {
+    paddingTop: 20,
     paddingBottom: 100, // Space for bottom buttons
   },
   loadingContainer: {
@@ -778,18 +478,28 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
+    marginTop: Platform.OS === 'ios' ? 30 : 0,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
+  searchInput: {
+    flex: 1,
+    height: 40,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    marginHorizontal: 12,
+    fontFamily: 'Poppins-Regular',
+  },
+  cartIcon: {
+    padding: 4,
   },
   imageCarousel: {
     height: width * 0.8,
+    maxHeight: 400,
     backgroundColor: '#F9F9F9',
     justifyContent: 'center',
     alignItems: 'center',
@@ -820,10 +530,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#9DCD5A',
     width: 16,
   },
-  discountBadge: {
+  heartIcon: {
     position: 'absolute',
     top: 16,
     right: 16,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 20,
+    padding: 8,
+    zIndex: 1,
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
     backgroundColor: '#FF5252',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -841,7 +560,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 30,
   },
   productName: {
     fontSize: 22,
@@ -849,12 +568,14 @@ const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
     marginRight: 12,
+    maxWidth: '70%',
   },
   productPrice: {
     fontSize: 18,
     fontFamily: 'Poppins-Bold',
     color: '#9DCD5A',
     textAlign: 'right',
+    flexShrink: 1,
   },
   discountedPrice: {
     color: '#FF5252',
@@ -864,15 +585,11 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 14,
   },
-  metaRow: {
+  ratingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   starsContainer: {
     flexDirection: 'row',
@@ -882,30 +599,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     fontFamily: 'Poppins-Regular',
+    marginRight: 12,
   },
   stockText: {
     fontSize: 12,
     color: '#4CAF50',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  infoSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
-    marginBottom: 12,
+    fontFamily: 'Poppins-Regular',
   },
   productDescription: {
     fontSize: 14,
     color: '#555',
     fontFamily: 'Poppins-Regular',
     lineHeight: 22,
+    marginBottom: 20,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginBottom: 20,
   },
   tag: {
     backgroundColor: '#E8F5E9',
@@ -920,28 +631,40 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontFamily: 'Poppins-SemiBold',
   },
+  quantitySection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#333',
+    marginBottom: 12,
+  },
   quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   quantityContainer: {
+    alignItems: 'flex-start',
+  },
+  quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#9DCD5A',
-    borderRadius: 8,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   quantityButton: {
     backgroundColor: '#9DCD5A',
-    width: 40,
-    height: 40,
+    width: 35,
+    height: 35,
     justifyContent: 'center',
     alignItems: 'center',
   },
   quantityButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -949,66 +672,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#CCC',
   },
   quantityInput: {
-    width: 50,
-    height: 40,
+    width: 35,
+    height: 35,
     textAlign: 'center',
     backgroundColor: '#fff',
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderColor: '#9DCD5A',
-    fontFamily: 'Poppins-Regular',
   },
   unitText: {
     fontSize: 14,
     color: '#888',
     fontFamily: 'Poppins-Regular',
   },
-  deliveryOptionsContainer: {
+  voucherSection: {
     marginBottom: 24,
   },
-  optionsRow: {
+  voucherInputContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
   },
-  optionButton: {
+  voucherInput: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
+    height: 48,
     borderWidth: 1,
-    borderColor: '#9DCD5A',
-    marginHorizontal: 4,
+    borderColor: '#DDD',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontFamily: 'Poppins-Regular',
   },
-  selectedOption: {
+  applyButton: {
     backgroundColor: '#9DCD5A',
-  },
-  optionText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#9DCD5A',
-    marginLeft: 8,
-  },
-  selectedOptionText: {
-    color: '#FFF',
-  },
-  datePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#9DCD5A',
-    backgroundColor: '#FFF',
-  },
-  datePickerText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#9DCD5A',
+    alignItems: 'center',
+    paddingHorizontal: 16,
     marginLeft: 8,
+    borderRadius: 8,
+  },
+  applyButtonText: {
+    color: '#FFF',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  farmSection: {
+    marginBottom: 24,
   },
   farmInfo: {
     flexDirection: 'row',
@@ -1020,6 +725,7 @@ const styles = StyleSheet.create({
     color: '#9DCD5A',
     fontFamily: 'Poppins-SemiBold',
     marginLeft: 8,
+    flexShrink: 1,
   },
   map: {
     width: '100%',
@@ -1031,7 +737,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: '9DCD5A',
+    color: '#FFFF',
     borderWidth: 1,
     borderColor: '#9DCD5A',
     borderRadius: 8,
@@ -1083,177 +790,8 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontFamily: 'Poppins-SemiBold',
   },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Poppins-Bold',
-    color: '#333',
-  },
-  modalContent: {
-    padding: 16,
-  },
-  summaryItem: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  summaryImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 16,
-  },
-  summaryDetails: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  summaryName: {
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  summaryPrice: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#9DCD5A',
-    marginBottom: 4,
-  },
-  summaryQuantity: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#888',
-  },
-  summarySection: {
-    marginBottom: 24,
-  },
-  summaryLabel: {
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  deliveryMethod: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  deliveryText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#333',
-    marginLeft: 8,
-  },
-  deliveryDate: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#888',
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  priceLabel: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#555',
-  },
-  priceValue: {
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
-  },
-  discountValue: {
-    color: '#FF5252',
-  },
-  totalRow: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#EEE',
-  },
-  totalLabel: {
-    fontFamily: 'Poppins-SemiBold',
-  },
-  totalValue: {
-    color: '#9DCD5A',
-    fontSize: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#555',
-    marginLeft: 8,
-  },
-  modalFooter: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#EEE',
-  },
-  confirmButton: {
-    backgroundColor: '#9DCD5A',
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  confirmButtonText: {
-    color: '#FFF',
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 16,
-  },
-  addressTitle: {
-  fontSize: 14,
-  fontFamily: 'Poppins-SemiBold',
-  color: '#333',
-  marginBottom: 4,
-  marginTop: 8,
-},
-addressContainer: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
-  marginBottom: 8,
-  },
-  addressTextContainer: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  addressText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#555',
-  },
-  addressType: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    color: '#888',
-    marginTop: 2,
+  spacer: {
+    height: 100, // Space for bottom buttons
   },
 });
 
