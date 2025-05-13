@@ -63,7 +63,12 @@ const CartScreen = () => {
           if (existingItemIndex !== -1) {
             updatedItems[existingItemIndex].quantity += newItem.quantity;
           } else {
-            updatedItems.push(newItem);
+            // Ensure price is always a number
+            const price = typeof newItem.price === 'string' ? parseFloat(newItem.price) : Number(newItem.price) || 0;
+            updatedItems.push({
+              ...newItem,
+              price: price
+            });
           }
         });
         return updatedItems;
@@ -74,13 +79,18 @@ const CartScreen = () => {
   useEffect(() => {
     const total = cartItems.reduce((sum, item) => {
       if (selectedItems[item.productId]) {
-        const itemPrice = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
-        return sum + (itemPrice * item.quantity);
+        const price = typeof item.price === 'string' ? parseFloat(item.price) : Number(item.price) || 0;
+        return sum + (price * item.quantity);
       }
       return sum;
     }, 0);
     setTotalAmount(total);
   }, [cartItems, selectedItems]);
+
+  const formatPrice = (price) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price) || 0;
+    return `₱${numPrice.toFixed(2)}`;
+  };
 
   const handleQuantityChange = (productId, change) => {
     setCartItems(prevItems =>
@@ -212,10 +222,11 @@ const CartScreen = () => {
                 />
                 <View style={styles.itemDetails}>
                   <Text style={styles.productName}>{item.productName}</Text>
-                  <Text style={styles.variantText}>Variant: {item.variant}</Text>
+                  <Text style={styles.variantText}>
+                    {item.quantity} {item.unit || 'piece'}
+                  </Text>
                   <Text style={styles.priceText}>
-                    ₱{(typeof item.price === 'string' ? parseFloat(item.price) : item.price).toFixed(2)} x {item.quantity} = 
-                    ₱{((typeof item.price === 'string' ? parseFloat(item.price) : item.price) * item.quantity).toFixed(2)}
+                    {formatPrice(item.price)} × {item.quantity} = {formatPrice(item.price * item.quantity)}
                   </Text>
                   <View style={styles.quantityControls}>
                     <TouchableOpacity
@@ -242,7 +253,7 @@ const CartScreen = () => {
       <View style={styles.bottomSection}>
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalAmount}>₱{totalAmount.toFixed(2)}</Text>
+          <Text style={styles.totalAmount}>{formatPrice(totalAmount)}</Text>
         </View>
         <TouchableOpacity
           style={[

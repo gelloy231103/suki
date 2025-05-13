@@ -134,28 +134,35 @@ const FocusedProductScreen = () => {
     animateButton();
   };
 
+  const formatPrice = (price) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price) || 0;
+    return `₱${numPrice.toFixed(2)}`;
+  };
+
   const addToCart = () => {
     if (!product) {
       Alert.alert('Error', 'Product information not available');
       return;
     }
     
-    const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+    // Ensure price is a number
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : Number(product.price) || 0;
     
     const cartItem = {
       farmId: product.farmId || 'unknown',
-      farmName: product.farmName || product.farm || 'Unknown Farm',
+      farmName: product.farmName || 'Unknown Farm',
       productId: product.id,
       productName: product.name,
       variant: `${quantity} ${formatUnit(product.unit)}`,
-      price: price || 0,
+      price: price,
       quantity: quantity,
-      image: product.images?.[0] || product.image || require('../assets/tomatoes.png')
+      image: product.images?.[0] || product.image || defaultImage,
+      unit: product.unit || 'piece'
     };
 
     Alert.alert(
       'Added to Cart',
-      `${quantity} ${formatUnit(product.unit)} of ${product.name} has been added to your cart`,
+      `${quantity} ${formatUnit(product.unit)} of ${product.name} has been added to your cart\nPrice: ${formatPrice(price * quantity)}`,
       [
         { 
           text: 'OK', 
@@ -176,22 +183,24 @@ const FocusedProductScreen = () => {
       return;
     }
 
-    const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+    // Ensure price is a number
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : Number(product.price) || 0;
     
     const cartItem = {
       farmId: product.farmId || 'unknown',
-      farmName: product.farmName || product.farm || 'Unknown Farm',
+      farmName: product.farmName || 'Unknown Farm',
       productId: product.id,
       productName: product.name,
       variant: `${quantity} ${formatUnit(product.unit)}`,
-      price: price || 0,
+      price: price,
       quantity: quantity,
-      image: product.images?.[0] || product.image || require('../assets/tomatoes.png')
+      image: product.images?.[0] || product.image || defaultImage,
+      unit: product.unit || 'piece'
     };
 
     Alert.alert(
       'Proceed to Checkout',
-      `Buy ${quantity} ${formatUnit(product.unit)} of ${product.name}?`,
+      `Buy ${quantity} ${formatUnit(product.unit)} of ${product.name}?\nTotal: ${formatPrice(price * quantity)}`,
       [
         {
           text: 'Cancel',
@@ -203,13 +212,6 @@ const FocusedProductScreen = () => {
             navigation.navigate('CartScreen', { 
               cartItems: [cartItem],
               merge: true
-            });
-            navigation.reset({
-              index: 0,
-              routes: [
-                { name: 'CartScreen', params: { cartItems: [cartItem], merge: true } },
-                { name: 'CheckOut' }
-              ],
             });
           }
         }

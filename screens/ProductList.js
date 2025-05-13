@@ -7,7 +7,7 @@ const defaultImage = require('../assets/tomatoes.png');
 
 const products = [
   {
-    id: '1',
+    id: 'P001',
     name: 'Sweet Tomatoes',
     price: 40.00,
     unit: 'kilogram',
@@ -18,7 +18,7 @@ const products = [
     farmName: 'Tadhana FarmVille',
   },
   {
-    id: '2',
+    id: 'P002',
     name: 'Biggest Eggplant',
     price: 80.00,
     unit: 'kilogram',
@@ -29,7 +29,7 @@ const products = [
     farmName: 'Tadhana FarmVille',
   },
   {
-    id: '3',
+    id: 'P003',
     name: 'Broccolicious',
     price: 40.00,
     unit: 'kilogram',
@@ -40,7 +40,7 @@ const products = [
     farmName: 'Tadhana FarmVille',
   },
   {
-    id: '4',
+    id: 'P004',
     name: 'Lettuce Baguio',
     price: 35.00,
     unit: 'kilogram',
@@ -56,18 +56,23 @@ export default function ProductList() {
   const navigation = useNavigation();
 
   const handleProductPress = (product) => {
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : Number(product.price) || 0;
+    
     navigation.navigate('FocusedProduct', { 
       productId: product.id,
       product: {
         ...product,
-        formattedPrice: `₱${product.price.toFixed(2)}/${product.unit}`,
+        price: price,
+        formattedPrice: formatPrice(price, product.unit),
         images: [product.image],
+        farmName: product.farmName,
       }
     });
   };
 
   const formatPrice = (price, unit) => {
-    return `₱${price.toFixed(2)}/${unit}`;
+    const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price) || 0;
+    return `₱${numPrice.toFixed(2)}/${unit}`;
   };
 
   const getImageSource = (image) => {
