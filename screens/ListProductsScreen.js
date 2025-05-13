@@ -1,100 +1,177 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, ScrollView, TextInput } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-
-const categories = ['Leaf greens', 'Broccoli', 'Cauliflower', 'Spinach', 'more'];
-const products = [
-  {
-    id: '1',
-    name: 'Sweet Tomatoes',
-    price: 'P40/kg',
-    rating: 4,
-    reviews: 354,
-    farm: 'Tadhana FarmVille',
-    image: require('../assets/tomatoes.png'),
-    liked: false
-  },
-  {
-    id: '2',
-    name: 'Biggest Eggplant',
-    price: 'P80/kg',
-    rating: 4,
-    reviews: 354,
-    farm: 'Marikina Farm and Restaurant',
-    image: require('../assets/eggplant.png'),
-    liked: false
-  },
-  {
-    id: '3',
-    name: 'Broccolicious',
-    price: 'P40/kg',
-    rating: 4,
-    reviews: 354,
-    farm: 'Habano Farm and Grill',
-    image: require('../assets/broccoli.png'),
-    liked: false
-  },
-  {
-    id: '4',
-    name: 'Lettuce Baguio',
-    price: 'P35/kg',
-    rating: 4,
-    reviews: 354,
-    farm: 'Habano Farm and Grill',
-    image: require('../assets/tomatoes.png'),
-    liked: false
-  },
-  {
-    id: '5',
-    name: 'Sweet Tomatoes',
-    price: 'P38/kg',
-    rating: 4,
-    reviews: 354,
-    farm: 'Tadhana Farm Ville',
-    image: require('../assets/tomatoes.png'),
-    liked: false
-  },
-    {
-    id: '6',
-    name: 'Sweet Tomatoes',
-    price: 'P38/kg',
-    rating: 4,
-    reviews: 354,
-    farm: 'Tadhana Farm Ville',
-    image: require('../assets/tomatoes.png'),
-    liked: false
-  }
-];
+import { collection, query, where, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { AuthContext } from '../context/AuthContext';
 
 const ListProductsScreen = () => {
   const navigation = useNavigation();
-  const [productList, setProductList] = useState(products);
-  const [activeCategory, setActiveCategory] = useState('Leaf greens');
+  const { userData } = useContext(AuthContext);
+  const [productList, setProductList] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('All');
   const [priceFilter, setPriceFilter] = useState('lowest to high');
-  const [activeTab, setActiveTab] = useState('Browse');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const toggleLike = (id) => {
-    setProductList(prevProducts => 
-      prevProducts.map(product => 
-        product.id === id ? {...product, liked: !product.liked} : product
-      )
-    );
+  // Fetch products from Firestore
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const productsRef = collection(db, 'products');
+        const q = query(productsRef, where('status', '==', 'available'));
+        
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
+          const productsData = [];
+          
+          for (const doc of snapshot.docs) {
+            const product = doc.data();
+            // Check if product is favorited by current user
+            let isFavorite = false;
+            if (userData?.uid) {
+              const favoriteRef = doc(db, 'users', userData.uid, 'favorites', doc.id);
+              const favoriteSnap = await getDoc(favoriteRef);
+              isFavorite = favoriteSnap.exists();
+            }
+            
+            productsData.push({
+              id: doc.id,
+              ...product,
+              liked: isFavorite,
+              imageUrl: product.images?.[0] || '',
+              formattedPrice: `₱${product.price.toFixed(2)}${product.unit ? `/${product.unit}` : ''}`,
+              rating: product.rating?.average || 0,
+              reviews: product.rating?.count || 0
+            });
+          }
+          
+          setProductList(productsData);
+          setLoading(false);
+        });
+        
+        return () => unsubscribe();
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [userData]);
+
+  // Fetch categories from products
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const productsRef = collection(db, 'products');
+        const snapshot = await getDocs(productsRef);
+        
+        const categoriesSet = new Set(['All']);
+        snapshot.forEach(doc => {
+          if (doc.data().category) {
+            categoriesSet.add(doc.data().category);
+          }
+        });
+        
+        setCategories(Array.from(categoriesSet));
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Filter and sort products based on selections
+  useEffect(() => {
+    let result = [...productList];
+    
+    // Filter by category
+    if (activeCategory !== 'All') {
+      result = result.filter(product => 
+        product.category === activeCategory
+      );
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
+      const queryLower = searchQuery.toLowerCase();
+      result = result.filter(product => 
+        product.name.toLowerCase().includes(queryLower) ||
+        (product.farm && product.farm.toLowerCase().includes(queryLower))
+      );
+    }
+    
+    // Sort by price
+    result.sort((a, b) => {
+      return priceFilter === 'lowest to high' ? a.price - b.price : b.price - a.price;
+    });
+    
+    setFilteredProducts(result);
+  }, [productList, activeCategory, priceFilter, searchQuery]);
+
+  // Toggle favorite status
+  const toggleLike = async (product) => {
+    if (!userData?.uid) {
+      navigation.navigate('Login');
+      return;
+    }
+    
+    try {
+      const favoriteRef = doc(db, 'users', userData.uid, 'favorites', product.id);
+      
+      if (product.liked) {
+        // Remove from favorites
+        await deleteDoc(favoriteRef);
+      } else {
+        // Add to favorites
+        await setDoc(favoriteRef, {
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          imageUrl: product.imageUrl,
+          addedAt: new Date().toISOString(),
+          unit: product.unit
+        });
+      }
+      
+      // Update local state
+      setProductList(prevProducts => 
+        prevProducts.map(p => 
+          p.id === product.id ? {...p, liked: !p.liked} : p
+        )
+      );
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+    }
   };
 
   const renderRatingStars = (rating) => {
-    return (
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Icon 
-            key={i}
-            name={i <= rating ? 'star' : 'star-border'}
-            size={16}
-            color={i <= rating ? '#FF5252' : '#E0E0E0'}
-          />
-        ))}
-      </View>
-    );
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+    
+    for (let i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars.push(
+          <Icon key={i} name="star" size={16} color="#FFD700" />
+        );
+      } else if (i === fullStars + 1 && hasHalfStar) {
+        stars.push(
+          <Icon key={i} name="star-half" size={16} color="#FFD700" />
+        );
+      } else {
+        stars.push(
+          <Icon key={i} name="star-border" size={16} color="#E0E0E0" />
+        );
+      }
+    }
+    
+    return <View style={styles.starsContainer}>{stars}</View>;
   };
 
   const renderItem = ({ item }) => (
@@ -102,11 +179,23 @@ const ListProductsScreen = () => {
       style={styles.productCard}
       onPress={() => navigation.navigate('FocusedProduct', { product: item })}
     >
-      <Image source={item.image} style={styles.productImage} resizeMode="cover" />
+      {item.imageUrl ? (
+        <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
+      ) : (
+        <View style={[styles.productImage, { backgroundColor: '#EEE', justifyContent: 'center', alignItems: 'center' }]}>
+          <Icon name="image" size={30} color="#9DCD5A" />
+        </View>
+      )}
       
       <View style={styles.productInfo}>
-        <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productPrice}>{item.price}</Text>
+        <Text 
+          style={styles.productName}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {item.name}
+        </Text>
+        <Text style={styles.productPrice}>{item.formattedPrice}</Text>
         
         <View style={styles.ratingContainer}>
           {renderRatingStars(item.rating)}
@@ -115,12 +204,18 @@ const ListProductsScreen = () => {
         
         <View style={styles.farmContainer}>
           <Icon name="location-on" size={16} color="#9DCD5A" />
-          <Text style={styles.farmText}>{item.farm}</Text>
+          <Text 
+            style={styles.farmText}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {item.farm || 'Local Farm'}
+          </Text>
         </View>
       </View>
       
       <View style={styles.likeButtonContainer}>
-        <TouchableOpacity onPress={() => toggleLike(item.id)}>
+        <TouchableOpacity onPress={() => toggleLike(item)}>
           <Icon 
             name={item.liked ? 'favorite' : 'favorite-border'} 
             size={24} 
@@ -130,6 +225,14 @@ const ListProductsScreen = () => {
       </View>
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#9DCD5A" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -147,6 +250,8 @@ const ListProductsScreen = () => {
             placeholder="Search for local products..."
             style={styles.searchInput}
             placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
         </View>
       </View>
@@ -171,6 +276,8 @@ const ListProductsScreen = () => {
                 styles.categoryText,
                 activeCategory === category && styles.activeCategoryText,
               ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {category}
             </Text>
@@ -199,12 +306,17 @@ const ListProductsScreen = () => {
 
       {/* Product List */}
       <FlatList
-        data={productList}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+          data={filteredProducts}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.listContent, { flexGrow: 1, justifyContent: 'flex-start' }]} // Align items at the top
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No products found</Text>
+            </View>
+          }
+        />
     </View>
   );
 };
@@ -214,6 +326,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9F9F9',
     paddingBottom: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    color: '#666',
+    fontSize: 16,
   },
   header: {
     flexDirection: 'row',
@@ -263,15 +390,16 @@ const styles = StyleSheet.create({
     marginRight: 12,
     textAlign: 'center',
     height: 30,
+    justifyContent: 'center',
   },
   activeCategoryButton: {
     backgroundColor: '#9DCD5A',
     color: 'white',
   },
   categoryText: {
-    marginTop: 5,
     fontSize: 12,
     color: 'black',
+    maxWidth: 100,
   },
   activeCategoryText: {
     color: '#FFF',
@@ -280,7 +408,6 @@ const styles = StyleSheet.create({
   filtersRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginBottom: -8,
@@ -325,6 +452,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#403F3F',
     marginBottom: 4,
+    maxWidth: '90%',
   },
   productPrice: {
     fontSize: 16,
@@ -353,6 +481,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginLeft: 4,
+    maxWidth: '80%',
   },
   likeButtonContainer: {
     justifyContent: 'center',

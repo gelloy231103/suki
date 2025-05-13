@@ -1,19 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, FlatList, Animated, Easing, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { AuthContext } from '../context/AuthContext';
 
 const DashboardScreen = ({ navigation }) => {
-  const categories = ['Leafy Greens', 'Root Crops', 'Fruits', 'Herbs', 'Fillers & Beauty'];
+  const { userData } = useContext(AuthContext);
+  const [categories, setCategories] = useState([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [products, setProducts] = useState([]);
+  const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const scaleValue = new Animated.Value(1);
+
+  // Fetch all available categories
+  const fetchCategories = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'products'));
+      const categoriesSet = new Set();
+      
+      querySnapshot.forEach((doc) => {
+        if (doc.data().category) {
+          categoriesSet.add(doc.data().category);
+        }
+      });
+      
+      setCategories(Array.from(categoriesSet));
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
+  // Helper function to get product details
+  const getProductDetails = async (productId) => {
+    try {
+      const docRef = doc(db, 'products', productId);
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? docSnap.data() : null;
+    } catch (error) {
+      console.error("Error fetching product details:", error);
+      return null;
+    }
+  };
+
+  // Calculate original bundle price
+  const calculateOriginalBundlePrice = async (bundle) => {
+    if (!bundle.bundleDetails?.items) return 0;
+    
+    let totalPrice = 0;
+    for (const item of bundle.bundleDetails.items) {
+      const product = await getProductDetails(item.productId);
+      if (product) {
+        totalPrice += product.price * item.quantity;
+      }
+    }
+    return totalPrice;
+  };
 
   // Fetch products from Firebase
   useEffect(() => {
@@ -23,7 +70,7 @@ const DashboardScreen = ({ navigation }) => {
       let productsQuery = query(
         collection(db, 'products'),
         where('status', '==', 'available'),
-        limit(20)
+        where('isBundled', '==', false)
       );
 
       if (selectedCategory) {
@@ -41,17 +88,21 @@ const DashboardScreen = ({ navigation }) => {
         );
       }
 
-      const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+      const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
         const productsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          price: `₱${doc.data().price.toFixed(2)}${doc.data().unit ? `/${doc.data().unit.toLowerCase()}` : ''}`,
-          originalPrice: doc.data().discount?.percentage 
+          price: doc.data().price,
+          unit: doc.data().unit,
+          formattedPrice: `₱${doc.data().price.toFixed(2)}${doc.data().unit ? `/${doc.data().unit.toLowerCase()}` : ''}`,
+          originalPrice: doc.data().percentage > 0 
             ? `₱${doc.data().price.toFixed(2)}`
             : null,
-          discount: doc.data().discount?.percentage 
-            ? `${doc.data().discount.percentage}% OFF` 
-            : null
+          discount: doc.data().percentage > 0 
+            ? `${doc.data().percentage}% OFF` 
+            : null,
+          rating: doc.data()?.rating?.average || 0,
+          reviewCount: doc.data()?.rating?.count || 0
         }));
         
         setProducts(productsData);
@@ -59,12 +110,59 @@ const DashboardScreen = ({ navigation }) => {
         setRefreshing(false);
       });
 
-      return () => unsubscribe();
+      return () => unsubscribeProducts();
     };
 
-    fetchProducts();
-  }, [selectedCategory, searchQuery]);
+    // Fetch bundles separately with all details
+    const fetchBundles = async () => {
+      const bundlesQuery = query(
+        collection(db, 'products'),
+        where('isBundled', '==', true),
+        where('status', '==', 'available')
+      );
 
+      const unsubscribeBundles = onSnapshot(bundlesQuery, async (snapshot) => {
+        const bundlesData = await Promise.all(snapshot.docs.map(async (doc) => {
+          const bundle = doc.data();
+          const originalPrice = await calculateOriginalBundlePrice(bundle);
+          const discountPercentage = originalPrice > 0 
+            ? Math.round((1 - bundle.price / originalPrice) * 100)
+            : 0;
+
+          // Get names of all products in the bundle
+          const productNames = await Promise.all(
+            bundle.bundleDetails?.items?.map(async (item) => {
+              const product = await getProductDetails(item.productId);
+              return product ? `${product.name} (${item.quantity}${product.unit ? product.unit.toLowerCase() : ''})` : '';
+            }) || []
+          );
+
+          return {
+            id: doc.id,
+            ...bundle,
+            formattedPrice: `₱${bundle.price.toFixed(2)}`,
+            originalPrice: originalPrice > 0 ? `₱${originalPrice.toFixed(2)}` : null,
+            discount: discountPercentage > 0 ? `${discountPercentage}% OFF` : null,
+            rating: bundle.rating?.average || 0,
+            reviewCount: bundle.rating?.count || 0,
+            inclusions: productNames.filter(name => name),
+            tag: bundle.tags?.includes('featured') ? 'BEST VALUE' : 
+                 bundle.tags?.includes('popular') ? 'POPULAR' : 
+                 bundle.tags?.includes('limited') ? 'LIMITED' : null
+          };
+        }));
+        
+        setBundles(bundlesData);
+      });
+
+      return () => unsubscribeBundles();
+    };
+
+    fetchCategories();
+    fetchProducts();
+    fetchBundles();
+  }, [selectedCategory, searchQuery]);
+  
   const animateButton = () => {
     Animated.sequence([
       Animated.timing(scaleValue, {
@@ -114,14 +212,23 @@ const DashboardScreen = ({ navigation }) => {
     );
   };
 
-    const renderProduct = ({ item }) => (
-      <Animated.View 
-        style={[styles.productCard, { transform: [{ scale: scaleValue }] }]}
+  const toggleBundleLike = (id) => {
+    animateButton();
+    setBundles(prevBundles => 
+      prevBundles.map(bundle => 
+        bundle.id === id ? {...bundle, liked: !bundle.liked} : bundle
+      )
+    );
+  };
+
+  const renderProduct = ({ item }) => (
+    <Animated.View 
+      style={[styles.productCard, { transform: [{ scale: scaleValue }] }]}
+    >
+      <TouchableOpacity
+        onPress={() => navigation.navigate('FocusedProduct', { productId: item.id })}
+        activeOpacity={0.9}
       >
-        <TouchableOpacity
-          onPress={() => navigation.navigate('FocusedProduct', { productId: item.id })}  // Changed this line
-          activeOpacity={0.9}
-        >
         <View style={styles.productImageContainer}>
           {item.images?.[0] ? (
             <Image 
@@ -159,17 +266,18 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.productPriceContainer}>
             <Text style={styles.productPrice}>
               {item.discount 
-                ? `₱${(item.price * (1 - (parseInt(item.discount)/100))).toFixed(2)}` 
-                : item.price}
+                ? `₱${(item.price * (1 - parseInt(item.discount) / 100)).toFixed(2)}${item.unit ? `/${item.unit.toLowerCase()}` : ''}` 
+                : item.formattedPrice}
             </Text>
             {item.originalPrice && (
               <Text style={styles.productOriginalPrice}>{item.originalPrice}</Text>
             )}
           </View>
+
           
           <View style={styles.productRatingContainer}>
-            {renderRatingStars(item.rating || 4.0)}
-            <Text style={styles.productReviewText}>{item.reviews || 0} reviews</Text>
+            {renderRatingStars(item.rating || 0)}
+            <Text style={styles.productReviewText}>{item.reviewCount || 0} reviews</Text>
           </View>
           
           <View style={styles.productFarmContainer}>
@@ -183,63 +291,20 @@ const DashboardScreen = ({ navigation }) => {
     </Animated.View>
   );
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    // The useEffect will automatically refetch when refreshing changes
-  };
-
-  // Flash Deals Data (unchanged from your original code)
-  const flashDeals = [
-    {
-      id: '1',
-      farm: 'Tadhana FarmVille',
-      rating: 4.5,
-      reviews: 55,
-      name: 'Premium Vegetable Sack',
-      inclusions: ['Root Crops', 'Tomatoes', 'Corn'],
-      price: '₱500',
-      originalPrice: '₱1250',
-      discount: '60% OFF',
-      image: require('../assets/sale1.png'),
-      liked: false,
-      tag: 'BEST VALUE'
-    },
-    {
-      id: '2',
-      farm: 'Organic Valley',
-      rating: 4.8,
-      reviews: 72,
-      name: 'Farm Fresh Bundle',
-      inclusions: ['Leafy Greens', 'Herbs', 'Peppers'],
-      price: '₱650',
-      originalPrice: '₱1300',
-      discount: '50% OFF',
-      image: require('../assets/sale1.png'),
-      liked: false,
-      tag: 'POPULAR'
-    },
-    {
-      id: '3',
-      farm: 'Marikina Farm',
-      rating: 4.3,
-      reviews: 48,
-      name: 'Seasonal Special',
-      inclusions: ['Eggplant', 'Squash', 'Okra'],
-      price: '₱450',
-      originalPrice: '₱900',
-      discount: '50% OFF',
-      image: require('../assets/sale1.png'),
-      liked: false,
-      tag: 'LIMITED'
-    },
-  ];
-
-  const [flashDealsList, setFlashDealsList] = useState(flashDeals);
-
   const renderFlashDeal = ({ item }) => (
     <View style={[styles.flashDealCard]}>
       <View style={styles.flashDealImageContainer}>
-        <Image source={item.image} style={styles.flashDealImage} resizeMode="cover" />
+        {item.images?.[0] ? (
+          <Image 
+            source={{ uri: item.images[0] }} 
+            style={styles.flashDealImage} 
+            resizeMode="cover" 
+          />
+        ) : (
+          <View style={[styles.flashDealImage, styles.emptyImage]}>
+            <Icon name="image" size={24} color="#9DCD5A" />
+          </View>
+        )}
         
         {item.tag && (
           <View style={[
@@ -253,14 +318,7 @@ const DashboardScreen = ({ navigation }) => {
         )}
         
         <TouchableOpacity 
-          onPress={() => {
-            animateButton();
-            setFlashDealsList(prevDeals => 
-              prevDeals.map(deal => 
-                deal.id === item.id ? {...deal, liked: !deal.liked} : deal
-              )
-            );
-          }} 
+          onPress={() => toggleBundleLike(item.id)} 
           style={styles.heartIcon}
         >
           <Icon 
@@ -270,31 +328,35 @@ const DashboardScreen = ({ navigation }) => {
           />
         </TouchableOpacity>
         
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>{item.discount}</Text>
-        </View>
+        {item.discount && (
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>{item.discount}</Text>
+          </View>
+        )}
       </View>
       
       <View style={styles.flashDealContent}>
         <View style={styles.farmRow}>
           <Icon name="home" size={15} color="#9DCD5A" />
-          <Text style={styles.farmText}>{item.farm}</Text>
+          <Text style={styles.farmText}>{item.farm || 'Local Farm'}</Text>
           {renderRatingStars(item.rating)}
-          <Text style={styles.reviewText}>({item.reviews})</Text>
+          <Text style={styles.reviewText}>({item.reviewCount})</Text>
         </View>
         
         <Text style={styles.flashDealTitle}>{item.name}</Text>
         
-        <View style={styles.inclusionsContainer}>
-          <Text style={styles.inclusionTitle}>Includes:</Text>
-          {item.inclusions.map((inc, index) => (
-            <Text key={index} style={styles.inclusionText}>• {inc}</Text>
-          ))}
-        </View>
+        {item.inclusions && item.inclusions.length > 0 && (
+          <View style={styles.inclusionsContainer}>
+            <Text style={styles.inclusionTitle}>Includes:</Text>
+            {item.inclusions.map((inc, index) => (
+              <Text key={index} style={styles.inclusionText}>• {inc}</Text>
+            ))}
+          </View>
+        )}
         
         <View style={styles.priceContainer}>
           <Text style={styles.nowOnly}>NOW </Text>
-          <Text style={styles.flashDealPrice}>{item.price}</Text>
+          <Text style={styles.flashDealPrice}>{item.formattedPrice}</Text>
           {item.originalPrice && (
             <Text style={styles.originalPrice}>{item.originalPrice}</Text>
           )}
@@ -303,12 +365,18 @@ const DashboardScreen = ({ navigation }) => {
         <TouchableOpacity 
           style={styles.addToCartButton}
           activeOpacity={0.8}
+          onPress={() => navigation.navigate('FocusedProduct', { productId: item.id })}
         >
           <Text style={styles.addToCartText}>ADD TO CART</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchCategories();
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -329,7 +397,7 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.header}>
           <View style={styles.greetingContainer}>
             <Text style={styles.greetingText}>Good morning,</Text>
-            <Text style={styles.userName}>Suki Member!</Text>
+            <Text style={styles.userName}>{userData.firstName || 'Suki Member'}!</Text>
           </View>
           
           <TouchableOpacity 
@@ -361,77 +429,83 @@ const DashboardScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
         
-        {/* Categories */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, {marginLeft: 20, marginBottom: 10}]}>Shop Categories</Text>
-          <ScrollView 
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
-          >
-            {categories.map((category, index) => (
+        {/* Categories - Only show when not searching */}
+        {!searchQuery && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, {marginLeft: 20, marginBottom: 10}]}>Shop Categories</Text>
+            <ScrollView 
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoriesContainer}
+            >
+              {categories.map((category, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[
+                    styles.categoryButton,
+                    selectedCategory === category && styles.selectedCategoryButton
+                  ]}
+                  onPress={() => setSelectedCategory(selectedCategory === category ? null : category)}
+                >
+                  <Text style={[
+                    styles.categoryText,
+                    selectedCategory === category && styles.selectedCategoryText
+                  ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+        
+        {/* Banner - Only show when not searching */}
+        {!searchQuery && (
+          <View style={styles.bannerContainer}>
+            <Image
+              source={require('../assets/filler-img.png')}
+              style={styles.bannerImage}
+              resizeMode="cover"
+            />
+            <View style={styles.bannerContent}>
+              <Text style={styles.bannerTitle}>Seasonal Specials</Text>
+              <Text style={styles.bannerSubtitle}>Up to 70% OFF on selected items</Text>
               <TouchableOpacity 
-                key={index} 
-                style={[
-                  styles.categoryButton,
-                  selectedCategory === category && styles.selectedCategoryButton
-                ]}
-                onPress={() => setSelectedCategory(selectedCategory === category ? null : category)}
+                style={styles.bannerButton}
+                onPress={() => navigation.navigate('SeasonalProducts')}
               >
-                <Text style={[
-                  styles.categoryText,
-                  selectedCategory === category && styles.selectedCategoryText
-                ]}>
-                  {category}
-                </Text>
+                <Text style={styles.bannerButtonText}>SHOP NOW</Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-        
-        {/* Banner */}
-        <View style={styles.bannerContainer}>
-          <Image
-            source={require('../assets/filler-img.png')}
-            style={styles.bannerImage}
-            resizeMode="cover"
-          />
-          <View style={styles.bannerContent}>
-            <Text style={styles.bannerTitle}>Seasonal Specials</Text>
-            <Text style={styles.bannerSubtitle}>Up to 70% OFF on selected items</Text>
-            <TouchableOpacity 
-              style={styles.bannerButton}
-              onPress={() => navigation.navigate('SeasonalProducts')}
-            >
-              <Text style={styles.bannerButtonText}>SHOP NOW</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        {/* Flash Deals */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <Icon name="flash-on" size={20} color="#FFA726" />
-              <Text style={styles.sectionTitle}>Flash Deals</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.viewAllButton}
-              onPress={() => navigation.navigate('FlashDeals')}
-            >
-              <Text style={styles.viewAllText}>View All</Text>
-              <Icon name="chevron-right" size={16} color="#9DCD5A" />
-            </TouchableOpacity>
           </View>
-          <FlatList
-            horizontal
-            data={flashDealsList}
-            renderItem={renderFlashDeal}
-            keyExtractor={item => item.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.flashDealsContainer}
-          />
-        </View>
+        )}
+        
+        {/* Flash Deals - Only show when not searching */}
+        {!searchQuery && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <Icon name="flash-on" size={20} color="#FFA726" />
+                <Text style={styles.sectionTitle}>Flash Deals</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.viewAllButton}
+                onPress={() => navigation.navigate('FlashDeals')}
+              >
+                <Text style={styles.viewAllText}>View All</Text>
+                <Icon name="chevron-right" size={16} color="#9DCD5A" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              horizontal
+              data={bundles}
+              renderItem={renderFlashDeal}
+              keyExtractor={item => item.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.flashDealsContainer}
+            />
+          </View>
+        )}
         
         {/* Products */}
         <View style={[styles.section, {marginBottom: 0}]}>
@@ -474,8 +548,9 @@ const DashboardScreen = ({ navigation }) => {
   );
 };
 
+// ... (keep all your existing styles)
 const styles = StyleSheet.create({
-  safeArea: {
+    safeArea: {
     flex: 1,
     backgroundColor: '#F9F9F9',
   },
@@ -950,6 +1025,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginTop: 8,
     textAlign: 'center',
+  },
+    savingsContainer: {
+    marginBottom: 12,
+  },
+  savingsText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontFamily: 'Poppins-SemiBold',
   },
 });
 
