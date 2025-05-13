@@ -32,6 +32,32 @@ const getUnitAbbreviation = (unit) => {
   return unitMap[unit.toLowerCase()] || unit;
 };
 
+// Helper function to convert full unit names to abbreviations
+const getUnitAbbreviation = (unit) => {
+  if (!unit) return '';
+  
+  const unitMap = {
+    'kilogram': 'kg',
+    'kilograms': 'kg',
+    'gram': 'g',
+    'grams': 'g',
+    'liter': 'L',
+    'liters': 'L',
+    'milliliter': 'mL',
+    'milliliters': 'mL',
+    'gallon': 'gal',
+    'gallons': 'gal',
+    'piece': 'pc',
+    'pieces': 'pcs',
+    'bunch': 'bunch',
+    'bunches': 'bunches',
+    'sack': 'sack',
+    'sacks': 'sacks'
+  };
+
+  return unitMap[unit.toLowerCase()] || unit;
+};
+
 const DashboardScreen = ({ navigation }) => {
   const { userData } = useContext(AuthContext);
   const [categories, setCategories] = useState([]);
@@ -144,7 +170,7 @@ const DashboardScreen = ({ navigation }) => {
             reviewCount: data?.rating?.count || 0
           };
         });
-
+        
         setProducts(productsData);
         setLoading(false);
         setRefreshing(false);
@@ -209,11 +235,15 @@ const DashboardScreen = ({ navigation }) => {
             ? Math.round((1 - bundle.price / originalPrice) * 100)
             : 0;
 
-          // Get names of all products in the bundle
+          // Get names of all products in the bundle with abbreviated units
           const productNames = await Promise.all(
             bundle.bundleDetails?.items?.map(async (item) => {
               const product = await getProductDetails(item.productId);
-              return product ? `${product.name} (${item.quantity}${product.unit ? product.unit.toLowerCase() : ''})` : '';
+              if (product) {
+                const unitAbbreviation = getUnitAbbreviation(product.unit);
+                return `${product.name} (${item.quantity}${unitAbbreviation})`;
+              }
+              return '';
             }) || []
           );
 
@@ -432,10 +462,12 @@ const DashboardScreen = ({ navigation }) => {
         
         <View style={styles.productContent}>
           <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
           
           <View style={styles.productPriceContainer}>
             <Text style={styles.productPrice}>
               {item.discount 
+                ? `₱${(item.price * (1 - parseInt(item.discount) / 100)).toFixed(2)}${item.unit ? `/${item.unit}` : ''}` 
                 ? `₱${(item.price * (1 - parseInt(item.discount) / 100)).toFixed(2)}${item.unit ? `/${item.unit}` : ''}` 
                 : item.formattedPrice}
             </Text>
@@ -943,22 +975,24 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
     marginBottom: 12,
-    height: 40,
+    height: 40, // Fixed height for consistent alignment
   },
   inclusionsContainer: {
     marginBottom: 12,
-    minHeight: 60,
+    minHeight: 60, // Minimum height for consistent alignment
   },
   inclusionTitle: {
     fontSize: 12,
     color: '#666',
     fontFamily: 'Poppins-Regular',
     marginBottom: 4,
+    marginBottom: 4,
   },
   inclusionText: {
     fontSize: 12,
     color: '#666',
     fontFamily: 'Poppins-Regular',
+    marginBottom: 2,
     lineHeight: 16,
   },
   moreItemsText: {
@@ -967,29 +1001,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginTop: 2,
   },
-  moreItemsText: {
-    fontSize: 12,
-    color: '#9DCD5A',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 4,
-  },
   priceContainer: {
     flexDirection: 'row',
-<<<<<<< HEAD
     alignItems: 'flex-end',
-=======
-    alignItems: 'center',
->>>>>>> 0c380ed (CartScreen & ListProductScreen)
     marginBottom: 8,
   },
   bundlePrice: {
     color: '#333',
     fontSize: 20,
     fontFamily: 'Poppins-Bold',
-<<<<<<< HEAD
     lineHeight: 24,
-=======
->>>>>>> 0c380ed (CartScreen & ListProductScreen)
   },
   originalPrice: {
     color: '#999',
@@ -1004,11 +1025,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
   starsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1022,6 +1038,7 @@ const styles = StyleSheet.create({
   addToCartButton: {
     backgroundColor: '#9DCD5A',
     borderRadius: 20,
+    paddingVertical: 10,
     paddingVertical: 10,
     alignItems: 'center',
   },
@@ -1098,11 +1115,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
     marginBottom: 8,
-    height: 36,
+    height: 36, // Fixed height for consistent alignment
     lineHeight: 18,
   },
   productPriceContainer: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
     alignItems: 'flex-end',
     marginBottom: 6,
   },
@@ -1111,6 +1129,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Bold',
     color: '#9DCD5A',
     lineHeight: 18,
+    lineHeight: 18,
   },
   productOriginalPrice: {
     fontSize: 12,
@@ -1118,6 +1137,7 @@ const styles = StyleSheet.create({
     color: '#999',
     textDecorationLine: 'line-through',
     marginLeft: 6,
+    lineHeight: 14,
     lineHeight: 14,
   },
   productRatingContainer: {
@@ -1134,6 +1154,7 @@ const styles = StyleSheet.create({
   productFarmContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 4,
     marginTop: 4,
   },
   productFarmText: {
