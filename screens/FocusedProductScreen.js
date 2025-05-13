@@ -51,14 +51,27 @@ const FocusedProductScreen = () => {
         const productSnap = await getDoc(productRef);
 
         if (productSnap.exists()) {
-          setProduct({
+          const productData = {
             id: productSnap.id,
             ...productSnap.data(),
             formattedPrice: `₱${productSnap.data().price.toFixed(2)}/${productSnap.data().unit.toLowerCase()}`,
             discountPrice: productSnap.data().discount?.percentage 
               ? `₱${(productSnap.data().price * (1 - productSnap.data().discount.percentage/100)).toFixed(2)}`
               : null
-          });
+          };
+          setProduct(productData);
+          
+          // Also fetch farm data if needed
+          if (productData.farmId) {
+            const farmRef = doc(db, 'farms', productData.farmId);
+            const farmSnap = await getDoc(farmRef);
+            if (farmSnap.exists()) {
+              setProduct(prev => ({
+                ...prev,
+                farmName: farmSnap.data().farmName || farmSnap.data().name,
+              }));
+            }
+          }
         } else {
           console.error('Product not found');
         }
@@ -103,18 +116,32 @@ const FocusedProductScreen = () => {
   const addToCart = () => {
     if (!product) return;
     
-    // Here you would typically update your cart state or send to a global state manager
+    // Prepare the cart item
+    const cartItem = {
+      farmId: product.farmId,
+      farmName: product.farmName || product.farm || 'Unknown Farm',
+      productId: product.id,
+      productName: product.name,
+      variant: product.variant || product.unit,
+      price: product.price,
+      quantity: quantity,
+      image: product.images?.[0] ? { uri: product.images[0] } : require('../assets/tomatoes.png')
+    };
+
+    // Navigate to CartScreen with the new item
     navigation.navigate('CartScreen', { 
-      cartItem: {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: quantity,
-        unit: product.unit,
-        image: product.images?.[0] || null,
-        farmId: product.farmId
-      }
+      cartItems: [cartItem],
+      merge: true // This will merge with existing navigation params
     });
+
+    // Show feedback to user
+    Alert.alert(
+      'Added to Cart',
+      `${quantity} ${product.unit.toLowerCase()} of ${product.name} has been added to your cart`,
+      [
+        { text: 'OK', onPress: () => {} }
+      ]
+    );
   };
 
   const navigateToCart = () => {
@@ -289,7 +316,7 @@ const FocusedProductScreen = () => {
             </View>
           )}
 
-          {/* Quantity Selector - Updated to match CartScreen style */}
+          {/* Quantity Selector */}
           <View style={styles.quantitySection}>
             <Text style={styles.sectionTitle}>Quantity</Text>
             <View style={styles.quantityRow}>
@@ -351,7 +378,7 @@ const FocusedProductScreen = () => {
             <Text style={styles.sectionTitle}>Farm Location</Text>
             <View style={styles.farmInfo}>
               <Icon name="home" size={20} color="#9DCD5A" />
-              <Text style={styles.farmName}>{product.farm || 'Tadhana Farm Ville'}</Text>
+              <Text style={styles.farmName}>{product.farmName || product.farm || 'Tadhana Farm Ville'}</Text>
             </View>
             
             <MapView
@@ -367,7 +394,7 @@ const FocusedProductScreen = () => {
             >
               <Marker
                 coordinate={{ latitude: 14.670605106704915, longitude: 121.33927325892779 }}
-                title={product.farm || 'Local Farm'}
+                title={product.farmName || product.farm || 'Local Farm'}
                 description={product.name}
               />
             </MapView>
@@ -415,7 +442,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   scrollContent: {
-    paddingTop:20,
+    paddingTop: 20,
     paddingBottom: 100, // Space for bottom buttons
   },
   loadingContainer: {
