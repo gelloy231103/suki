@@ -6,6 +6,32 @@ import { collection, query, where, onSnapshot, limit, getDocs, doc, getDoc } fro
 import { db } from '../config/firebase';
 import { AuthContext } from '../context/AuthContext';
 
+// Helper function to convert full unit names to abbreviations
+const getUnitAbbreviation = (unit) => {
+  if (!unit) return '';
+  
+  const unitMap = {
+    'kilogram': 'kg',
+    'kilograms': 'kg',
+    'gram': 'g',
+    'grams': 'g',
+    'liter': 'L',
+    'liters': 'L',
+    'milliliter': 'mL',
+    'milliliters': 'mL',
+    'gallon': 'gal',
+    'gallons': 'gal',
+    'piece': 'pc',
+    'pieces': 'pcs',
+    'bunch': 'bunch',
+    'bunches': 'bunches',
+    'sack': 'sack',
+    'sacks': 'sacks'
+  };
+
+  return unitMap[unit.toLowerCase()] || unit;
+};
+
 const DashboardScreen = ({ navigation }) => {
   const { userData } = useContext(AuthContext);
   const [categories, setCategories] = useState([]);
@@ -89,22 +115,27 @@ const DashboardScreen = ({ navigation }) => {
       }
 
       const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
-        const productsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          price: doc.data().price,
-          unit: doc.data().unit,
-          formattedPrice: `₱${doc.data().price.toFixed(2)}${doc.data().unit ? `/${doc.data().unit.toLowerCase()}` : ''}`,
-          originalPrice: doc.data().percentage > 0 
-            ? `₱${doc.data().price.toFixed(2)}`
-            : null,
-          discount: doc.data().percentage > 0 
-            ? `${doc.data().percentage}% OFF` 
-            : null,
-          rating: doc.data()?.rating?.average || 0,
-          reviewCount: doc.data()?.rating?.count || 0
-        }));
-        
+        const productsData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const unitAbbreviation = getUnitAbbreviation(data.unit);
+          
+          return {
+            id: doc.id,
+            ...data,
+            price: data.price,
+            unit: unitAbbreviation,
+            formattedPrice: `₱${data.price.toFixed(2)}${unitAbbreviation ? `/${unitAbbreviation}` : ''}`,
+            originalPrice: data.percentage > 0 
+              ? `₱${data.price.toFixed(2)}${unitAbbreviation ? `/${unitAbbreviation}` : ''}`
+              : null,
+            discount: data.percentage > 0 
+              ? `${data.percentage}% OFF` 
+              : null,
+            rating: data?.rating?.average || 0,
+            reviewCount: data?.rating?.count || 0
+          };
+        });
+
         setProducts(productsData);
         setLoading(false);
         setRefreshing(false);
@@ -120,43 +151,51 @@ const DashboardScreen = ({ navigation }) => {
         where('isBundled', '==', true),
         where('status', '==', 'available')
       );
-
+    
       const unsubscribeBundles = onSnapshot(bundlesQuery, async (snapshot) => {
-        const bundlesData = await Promise.all(snapshot.docs.map(async (doc) => {
-          const bundle = doc.data();
-          const originalPrice = await calculateOriginalBundlePrice(bundle);
-          const discountPercentage = originalPrice > 0 
-            ? Math.round((1 - bundle.price / originalPrice) * 100)
-            : 0;
-
-          // Get names of all products in the bundle
-          const productNames = await Promise.all(
-            bundle.bundleDetails?.items?.map(async (item) => {
-              const product = await getProductDetails(item.productId);
-              return product ? `${product.name} (${item.quantity}${product.unit ? product.unit.toLowerCase() : ''})` : '';
-            }) || []
-          );
-
-          return {
-            id: doc.id,
-            ...bundle,
-            formattedPrice: `₱${bundle.price.toFixed(2)}`,
-            originalPrice: originalPrice > 0 ? `₱${originalPrice.toFixed(2)}` : null,
-            discount: discountPercentage > 0 ? `${discountPercentage}% OFF` : null,
-            rating: bundle.rating?.average || 0,
-            reviewCount: bundle.rating?.count || 0,
-            inclusions: productNames.filter(name => name),
-            tag: bundle.tags?.includes('featured') ? 'BEST VALUE' : 
-                 bundle.tags?.includes('popular') ? 'POPULAR' : 
-                 bundle.tags?.includes('limited') ? 'LIMITED' : null
-          };
-        }));
-        
+        const bundlesData = await Promise.all(
+          snapshot.docs.map(async (doc) => {
+            const bundle = doc.data();
+            const originalPrice = await calculateOriginalBundlePrice(bundle);
+            const discountPercentage =
+              originalPrice > 0
+                ? Math.round((1 - bundle.price / originalPrice) * 100)
+                : 0;
+    
+            // Get names of all products in the bundle with abbreviated units
+            const productNames = await Promise.all(
+              bundle.bundleDetails?.items?.map(async (item) => {
+                const product = await getProductDetails(item.productId);
+                if (product) {
+                  const unitAbbreviation = getUnitAbbreviation(product.unit);
+                  return `${product.name} (${item.quantity}${unitAbbreviation})`;
+                }
+                return '';
+              }) || []
+            );
+    
+            return {
+              id: doc.id,
+              ...bundle,
+              formattedPrice: `₱${bundle.price.toFixed(2)}`,
+              originalPrice: originalPrice > 0 ? `₱${originalPrice.toFixed(2)}` : null,
+              discount: discountPercentage > 0 ? `${discountPercentage}% OFF` : null,
+              rating: bundle.rating?.average || 0,
+              reviewCount: bundle.rating?.count || 0,
+              inclusions: productNames.filter(name => name),
+              tag: bundle.tags?.includes('featured') ? 'BEST VALUE' :
+                   bundle.tags?.includes('popular') ? 'POPULAR' :
+                   bundle.tags?.includes('limited') ? 'LIMITED' : null
+            };
+          }) // ← this was missing a closing parenthesis
+        );
+    
         setBundles(bundlesData);
       });
-
+    
       return () => unsubscribeBundles();
     };
+    
 
     fetchCategories();
     fetchProducts();
@@ -261,12 +300,12 @@ const DashboardScreen = ({ navigation }) => {
         </View>
         
         <View style={styles.productContent}>
-          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
           
           <View style={styles.productPriceContainer}>
             <Text style={styles.productPrice}>
               {item.discount 
-                ? `₱${(item.price * (1 - parseInt(item.discount) / 100)).toFixed(2)}${item.unit ? `/${item.unit.toLowerCase()}` : ''}` 
+                ? `₱${(item.price * (1 - parseInt(item.discount) / 100)).toFixed(2)}${item.unit ? `/${item.unit}` : ''}` 
                 : item.formattedPrice}
             </Text>
             {item.originalPrice && (
@@ -274,7 +313,6 @@ const DashboardScreen = ({ navigation }) => {
             )}
           </View>
 
-          
           <View style={styles.productRatingContainer}>
             {renderRatingStars(item.rating || 0)}
             <Text style={styles.productReviewText}>{item.reviewCount || 0} reviews</Text>
@@ -348,9 +386,12 @@ const DashboardScreen = ({ navigation }) => {
         {item.inclusions && item.inclusions.length > 0 && (
           <View style={styles.inclusionsContainer}>
             <Text style={styles.inclusionTitle}>Includes:</Text>
-            {item.inclusions.map((inc, index) => (
+            {item.inclusions.slice(0, 3).map((inc, index) => (
               <Text key={index} style={styles.inclusionText}>• {inc}</Text>
             ))}
+            {item.inclusions.length > 3 && (
+              <Text style={styles.moreItemsText}>+{item.inclusions.length - 3} more items</Text>
+            )}
           </View>
         )}
         
@@ -548,9 +589,8 @@ const DashboardScreen = ({ navigation }) => {
   );
 };
 
-// ... (keep all your existing styles)
 const styles = StyleSheet.create({
-    safeArea: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#F9F9F9',
   },
@@ -845,26 +885,34 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
     marginBottom: 12,
+    height: 40,
   },
   inclusionsContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
+    minHeight: 60,
   },
   inclusionTitle: {
     fontSize: 12,
     color: '#666',
     fontFamily: 'Poppins-Regular',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   inclusionText: {
     fontSize: 12,
     color: '#666',
     fontFamily: 'Poppins-Regular',
-    marginBottom: 2,
+    lineHeight: 16,
+  },
+  moreItemsText: {
+    fontSize: 12,
+    color: '#9DCD5A',
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
   },
   priceContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+    alignItems: 'flex-end',
+    marginBottom: 8,
   },
   nowOnly: {
     color: '#666',
@@ -875,7 +923,7 @@ const styles = StyleSheet.create({
     color: '#333',
     fontSize: 20,
     fontFamily: 'Poppins-Bold',
-    marginLeft: 4,
+    lineHeight: 24,
   },
   originalPrice: {
     color: '#999',
@@ -883,11 +931,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     textDecorationLine: 'line-through',
     marginLeft: 8,
+    lineHeight: 18,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   addToCartButton: {
     backgroundColor: '#9DCD5A',
     borderRadius: 20,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   addToCartText: {
@@ -962,17 +1016,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
-    marginBottom: 6,
+    marginBottom: 8,
+    height: 36,
+    lineHeight: 18,
   },
   productPriceContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     marginBottom: 6,
   },
   productPrice: {
     fontSize: 16,
     fontFamily: 'Poppins-Bold',
     color: '#9DCD5A',
+    lineHeight: 18,
   },
   productOriginalPrice: {
     fontSize: 12,
@@ -980,6 +1037,7 @@ const styles = StyleSheet.create({
     color: '#999',
     textDecorationLine: 'line-through',
     marginLeft: 6,
+    lineHeight: 14,
   },
   productRatingContainer: {
     flexDirection: 'row',
@@ -995,6 +1053,7 @@ const styles = StyleSheet.create({
   productFarmContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 4,
   },
   productFarmText: {
     fontSize: 11,
@@ -1026,7 +1085,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-    savingsContainer: {
+  savingsContainer: {
     marginBottom: 12,
   },
   savingsText: {
