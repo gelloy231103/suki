@@ -32,32 +32,6 @@ const getUnitAbbreviation = (unit) => {
   return unitMap[unit.toLowerCase()] || unit;
 };
 
-// Helper function to convert full unit names to abbreviations
-const getUnitAbbreviation = (unit) => {
-  if (!unit) return '';
-  
-  const unitMap = {
-    'kilogram': 'kg',
-    'kilograms': 'kg',
-    'gram': 'g',
-    'grams': 'g',
-    'liter': 'L',
-    'liters': 'L',
-    'milliliter': 'mL',
-    'milliliters': 'mL',
-    'gallon': 'gal',
-    'gallons': 'gal',
-    'piece': 'pc',
-    'pieces': 'pcs',
-    'bunch': 'bunch',
-    'bunches': 'bunches',
-    'sack': 'sack',
-    'sacks': 'sacks'
-  };
-
-  return unitMap[unit.toLowerCase()] || unit;
-};
-
 const DashboardScreen = ({ navigation }) => {
   const { userData } = useContext(AuthContext);
   const [categories, setCategories] = useState([]);
@@ -101,13 +75,10 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   // Calculate original bundle price and get farm names
-  // Calculate original bundle price and get farm names
   const calculateOriginalBundlePrice = async (bundle) => {
     if (!bundle.bundleDetails?.items) return 0;
     
     let totalPrice = 0;
-    let farmNames = new Set();
-    
     let farmNames = new Set();
     
     for (const item of bundle.bundleDetails.items) {
@@ -117,16 +88,8 @@ const DashboardScreen = ({ navigation }) => {
         if (product.farm) {
           farmNames.add(product.farm);
         }
-        if (product.farm) {
-          farmNames.add(product.farm);
-        }
       }
     }
-    
-    return {
-      originalPrice: totalPrice,
-      farms: Array.from(farmNames).join(' & ') || 'Local Farms'
-    };
     
     return {
       originalPrice: totalPrice,
@@ -191,13 +154,10 @@ const DashboardScreen = ({ navigation }) => {
     };
 
     // Fetch bundles with all details
-    // Fetch bundles with all details
     const fetchBundles = async () => {
       const bundlesQuery = query(
         collection(db, 'products'),
         where('isBundled', '==', true),
-        where('status', '==', 'available'),
-        limit(10) // Limit to 10 bundles for performance
         where('status', '==', 'available'),
         limit(10) // Limit to 10 bundles for performance
       );
@@ -306,93 +266,6 @@ const DashboardScreen = ({ navigation }) => {
       )
     );
   };
-
-  const renderBundleCard = ({ item }) => (
-    <View style={styles.bundleCard}>
-      <View style={styles.bundleImageContainer}>
-        {item.images?.[0] ? (
-          <Image 
-            source={{ uri: item.images[0] }} 
-            style={styles.bundleImage} 
-            resizeMode="cover" 
-          />
-        ) : (
-          <View style={[styles.bundleImage, styles.emptyImage]}>
-            <Icon name="image" size={24} color="#9DCD5A" />
-          </View>
-        )}
-        
-        {item.tag && (
-          <View style={[
-            styles.tagBadge,
-            item.tag === 'BEST VALUE' && styles.bestValueBadge,
-            item.tag === 'POPULAR' && styles.popularBadge,
-            item.tag === 'LIMITED' && styles.limitedBadge
-          ]}>
-            <Text style={styles.tagText}>{item.tag}</Text>
-          </View>
-        )}
-        
-        <TouchableOpacity 
-          onPress={() => toggleBundleLike(item.id)} 
-          style={styles.heartIcon}
-        >
-          <Icon 
-            name={item.liked ? 'favorite' : 'favorite-border'} 
-            size={24} 
-            color={item.liked ? '#FF5252' : 'white'} 
-          />
-        </TouchableOpacity>
-        
-        {item.discount && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>{item.discount}</Text>
-          </View>
-        )}
-      </View>
-      
-      <View style={styles.bundleContent}>
-        <View style={styles.farmRow}>
-          <Icon name="home" size={15} color="#9DCD5A" />
-          <Text style={styles.farmText} numberOfLines={1}>{item.farm}</Text>
-        </View>
-        
-        <Text style={styles.bundleTitle}>{item.name}</Text>
-        
-        {item.inclusions && item.inclusions.length > 0 && (
-          <View style={styles.inclusionsContainer}>
-            <Text style={styles.inclusionTitle}>Includes:</Text>
-            {item.inclusions.slice(0, 3).map((inc, index) => (
-              <Text key={index} style={styles.inclusionText}>• {inc}</Text>
-            ))}
-            {item.inclusions.length > 3 && (
-              <Text style={styles.moreItemsText}>+{item.inclusions.length - 3} more</Text>
-            )}
-          </View>
-        )}
-        
-        <View style={styles.priceContainer}>
-          <Text style={styles.bundlePrice}>{item.formattedPrice}</Text>
-          {item.originalPrice && (
-            <Text style={styles.originalPrice}>{item.originalPrice}</Text>
-          )}
-        </View>
-        
-        <View style={styles.ratingContainer}>
-          {renderRatingStars(item.rating)}
-          <Text style={styles.reviewText}>({item.reviewCount})</Text>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.addToCartButton}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('FocusedProduct', { productId: item.id })}
-        >
-          <Text style={styles.addToCartText}>VIEW BUNDLE</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   const renderBundleCard = ({ item }) => (
     <View style={styles.bundleCard}>
@@ -638,19 +511,14 @@ const DashboardScreen = ({ navigation }) => {
         
         {/* Bundles Section - Only show when not searching */}
         {!searchQuery && bundles.length > 0 && (
-        {/* Bundles Section - Only show when not searching */}
-        {!searchQuery && bundles.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleContainer}>
                 <Icon name="local-offer" size={20} color="#9DCD5A" />
                 <Text style={styles.sectionTitle}>Special Bundles</Text>
-                <Icon name="local-offer" size={20} color="#9DCD5A" />
-                <Text style={styles.sectionTitle}>Special Bundles</Text>
               </View>
               <TouchableOpacity 
                 style={styles.viewAllButton}
-                onPress={() => navigation.navigate('AllBundles')}
                 onPress={() => navigation.navigate('AllBundles')}
               >
                 <Text style={styles.viewAllText}>View All</Text>
@@ -661,10 +529,8 @@ const DashboardScreen = ({ navigation }) => {
               horizontal
               data={bundles}
               renderItem={renderBundleCard}
-              renderItem={renderBundleCard}
               keyExtractor={item => item.id}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.bundlesContainer}
               contentContainerStyle={styles.bundlesContainer}
             />
           </View>
@@ -675,9 +541,6 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
               <Icon name="local-offer" size={20} color="#9DCD5A" />
-              <Text style={styles.sectionTitle}>
-                {selectedCategory ? selectedCategory : 'Fresh Picks'}
-              </Text>
               <Text style={styles.sectionTitle}>
                 {selectedCategory ? selectedCategory : 'Fresh Picks'}
               </Text>
@@ -859,11 +722,9 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   bundlesContainer: {
-  bundlesContainer: {
     paddingLeft: 24,
     paddingRight: 12,
   },
-  bundleCard: {
   bundleCard: {
     width: 280,
     backgroundColor: '#FFF',
@@ -880,11 +741,9 @@ const styles = StyleSheet.create({
     borderColor: '#F0F0F0',
   },
   bundleImageContainer: {
-  bundleImageContainer: {
     position: 'relative',
     height: 160,
   },
-  bundleImage: {
   bundleImage: {
     width: '100%',
     height: '100%',
@@ -940,7 +799,6 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   bundleContent: {
-  bundleContent: {
     padding: 16,
   },
   farmRow: {
@@ -954,9 +812,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginLeft: 6,
     flex: 1,
-    flex: 1,
   },
-  bundleTitle: {
   bundleTitle: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
@@ -972,7 +828,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontFamily: 'Poppins-Regular',
-    marginBottom: 4,
     marginBottom: 4,
   },
   inclusionText: {
@@ -993,7 +848,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginBottom: 8,
   },
-  bundlePrice: {
   bundlePrice: {
     color: '#333',
     fontSize: 20,
@@ -1026,7 +880,6 @@ const styles = StyleSheet.create({
   addToCartButton: {
     backgroundColor: '#9DCD5A',
     borderRadius: 20,
-    paddingVertical: 10,
     paddingVertical: 10,
     alignItems: 'center',
   },
@@ -1109,14 +962,12 @@ const styles = StyleSheet.create({
   productPriceContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    alignItems: 'flex-end',
     marginBottom: 6,
   },
   productPrice: {
     fontSize: 16,
     fontFamily: 'Poppins-Bold',
     color: '#9DCD5A',
-    lineHeight: 18,
     lineHeight: 18,
   },
   productOriginalPrice: {
@@ -1125,7 +976,6 @@ const styles = StyleSheet.create({
     color: '#999',
     textDecorationLine: 'line-through',
     marginLeft: 6,
-    lineHeight: 14,
     lineHeight: 14,
   },
   productRatingContainer: {
@@ -1142,7 +992,6 @@ const styles = StyleSheet.create({
   productFarmContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
     marginTop: 4,
   },
   productFarmText: {
@@ -1175,17 +1024,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-<<<<<<< HEAD
-  savingsContainer: {
-    marginBottom: 12,
-  },
-  savingsText: {
-    color: '#4CAF50',
-    fontSize: 12,
-    fontFamily: 'Poppins-SemiBold',
-  },
-=======
->>>>>>> 0c380ed (CartScreen & ListProductScreen)
 });
 
 export default DashboardScreen;
